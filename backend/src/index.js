@@ -41,20 +41,23 @@ const server = http.createServer(app); // Create HTTP server from Express app, n
 // --- Configure CORS for Express and Socket.IO ---
 const allowedOrigins = [
     "http://localhost:3000", // Your React development server
-    "http://localhost:5001", // Your backend itself (for requests originating from it)
+    "http://https://mri-erp-frontend.onrender.com", // Your backend itself (for requests originating from it)
     "app://.", // Electron's custom origin for its renderer process
     "null" // Sometimes Electron or file:// origins register as "null"
 ];
 // CORS for Express routes
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-        const msg = `The CORS policy for this site does not allow access from Origin: ${origin}`;
-        return callback(new Error(msg), false);
-    },
-    credentials: true // Allow cookies/authorization headers
+     origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not ' +
+                  'allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true, // Allow cookies/authorization headers
 }));
 // Middleware to parse JSON request bodies
 app.use(express.json());
