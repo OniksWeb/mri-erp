@@ -132,8 +132,22 @@ function generateReceiptNumber() {
 // --- PostgreSQL Database Connection Pool ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Required for Render's free PostgreSQL
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
+
+// Add a check to ensure the connection is successful on startup
+pool.connect()
+    .then(client => {
+        console.log("Database connected successfully!");
+        client.release();
+    })
+    .catch(err => {
+        console.error('CRITICAL: Failed to connect to database on startup.', err);
+        // You may want to exit the process if the connection fails
+        // process.exit(1);
+    });
 
 // Database connection test on startup
 async function testDbConnection() {
