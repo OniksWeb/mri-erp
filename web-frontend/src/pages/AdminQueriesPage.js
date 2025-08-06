@@ -64,7 +64,7 @@ function AdminQueriesPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:5001/api/admin/queries', { // Using PORT 5001
+      const response = await fetch('process.env.REACT_APP_API_URL/admin/queries', { // Using PORT 5001
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ function AdminQueriesPage() {
     setSuccess('');
 
     try {
-      const response = await fetch(`http://localhost:5001/api/admin/queries/${currentQuery.id}`, {
+      const response = await fetch(`process.env.REACT_APP_API_URL/admin/queries/${currentQuery.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

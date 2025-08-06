@@ -62,7 +62,7 @@ function RegisterPage() {
 
     try {
       // Make API call to your backend register endpoint
-      const response = await fetch('http://localhost:5001/api/register', { // Using PORT 5001
+      const response = await fetch('process.env.REACT_APP_API_URL/register', { // Using PORT 5001
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

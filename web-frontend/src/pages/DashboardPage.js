@@ -182,12 +182,12 @@ function DashboardPage() {
         eventsRes,
         patientsRes
       ] = await Promise.all([
-        fetch('http://localhost:5001/api/analytics/total-patients', { headers }),
-        fetch('http://localhost:5001/api/analytics/patients-by-gender', { headers }),
-        fetch('http://localhost:5001/api/analytics/mris-by-day', { headers }),
-        fetch('http://localhost:5001/api/analytics/recent-patients', { headers }),
-        fetch(`http://localhost:5001/api/events/my?start=${startRange}&end=${endRange}`, { headers }),
-        fetch('http://localhost:5001/api/patients', { headers }),
+        fetch('process.env.REACT_APP_API_URL/analytics/total-patients', { headers }),
+        fetch('process.env.REACT_APP_API_URL/analytics/patients-by-gender', { headers }),
+        fetch('process.env.REACT_APP_API_URL/analytics/mris-by-day', { headers }),
+        fetch('process.env.REACT_APP_API_URL/analytics/recent-patients', { headers }),
+        fetch(`process.env.REACT_APP_API_URL/events/my?start=${startRange}&end=${endRange}`, { headers }),
+        fetch('process.env.REACT_APP_API_URL/patients', { headers }),
       ]);
 
       const [
@@ -570,7 +570,7 @@ const EventWrapper = ({ event, children }) => {
                   <Alert severity="error">{eventError}</Alert>
                 ) : (
                   <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <Box sx={{ height: '50vh', width: '50vh' }}> {/* Responsive height */}
+                    <Box sx={{ height: '50vh', width: '5vh' }}> {/* Responsive height */}
                       <Calendar
                         localizer={localizer}
                         events={events}
