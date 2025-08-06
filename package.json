@@ -1,0 +1,23 @@
+
+{
+  "name": "mri-erp-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MRI Patient Inventory ERP Application",
+  "main": "electron-main/main.js",
+  "scripts": {
+    "start:react": "npm start --prefix web-frontend",
+    "start:backend": "npm run dev --prefix backend",
+    "start:electron": "npm start --prefix electron-main",
+    "dev": "concurrently \"npm run start:react\" \"npm run start:backend\" \"wait-on http://localhost:3000 && npm run start:electron\"",
+    "build:react": "npm run build --prefix web-frontend",
+    "build:electron": "npm install && electron-builder --dir",
+    "build:all": "npm run build:react && npm run build:electron"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}

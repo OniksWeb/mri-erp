@@ -1,0 +1,17 @@
+{
+  "name": "electron-main",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "electron": "^37.2.1",
+    "electron-is-dev": "^3.0.1"
+  }
+}
