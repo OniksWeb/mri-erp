@@ -112,8 +112,6 @@ if (!JWT_SECRET) {
 }
 
 // --- 8. Define API Routes ---
-
-// Basic Express Route
 app.get('/api', (req, res) => {
     res.send('Welcome to the ERP Backend API!');
 });
@@ -696,7 +694,6 @@ app.get('/api/patients/results/:fileId/download', auth, authorizeRoles('medical_
         const resultFileRecord = await pool.query('SELECT file_path, file_name, file_type FROM patient_results_files WHERE file_id = $1', [fileId]);
         const file = resultFileRecord.rows[0];
         if (!file) {
-            console.error(`Download failed: Result record with file_id ${fileId} not found in DB.`);
             return res.status(404).json({ message: 'Result file not found in database.' });
         }
         const absoluteFilePath = path.join(UPLOADS_BASE_DIR, file.file_path);

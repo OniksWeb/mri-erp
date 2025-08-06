@@ -1,23 +1,51 @@
-
 {
   "name": "mri-erp-app",
   "version": "1.0.0",
-  "private": true,
-  "description": "MRI Patient Inventory ERP Application",
   "main": "electron-main/main.js",
+  "author": "Your Name <your.email@example.com>",
+  "description": "An ERP application for managing MRI patient inventory.",
+  "homepage": "./",
+  "private": true,
   "scripts": {
     "start:react": "npm start --prefix web-frontend",
     "start:backend": "npm run dev --prefix backend",
     "start:electron": "npm start --prefix electron-main",
     "dev": "concurrently \"npm run start:react\" \"npm run start:backend\" \"wait-on http://localhost:3000 && npm run start:electron\"",
     "build:react": "npm run build --prefix web-frontend",
-    "build:electron": "npm install && electron-builder --dir",
+    "build:electron": "npm run build:react && electron-builder",
     "build:all": "npm run build:react && npm run build:electron"
+  },
+  "dependencies": {
+    "electron": "^28.1.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "electron-builder": "^24.9.1"
   },
-  "author": "Your Name",
-  "license": "MIT"
+  "build": {
+    "appId": "com.g2gmedical.mri-erp-app",
+    "productName": "G2G Medical MRI ERP",
+    "copyright": "Copyright © 2024 Your Name",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron-main/**/*",
+      "web-frontend/build/**/*"
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": "nsis"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": "AppImage"
+    }
+  }
 }
