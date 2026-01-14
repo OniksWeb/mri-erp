@@ -27,7 +27,7 @@ import puppeteer from "puppeteer";
 // ------------------ Config & Utils ------------------
 import { s3Client } from "../config/s3.js";
 import { v4 as uuidv4 } from "uuid";
-import pdf from "html-pdf-node"; // notice I used "pdf" as the variable
+import pdf from "html-pdf-node"; 
 import htmlPdf from "html-pdf-node";
 import Handlebars from "handlebars";
 
@@ -44,7 +44,6 @@ import { formatNumbersInResponse } from "../utils/formatNumber.js";
 
 
 // ------------------ Config checks ------------------
-// JWT_SECRET should be set — log strongly if missing but do not crash to avoid EB auto-fail loops
 if (!process.env.JWT_SECRET) {
   console.error('CRITICAL WARNING: JWT_SECRET is NOT set. Please set JWT_SECRET in your environment variables.');
 } 
@@ -67,29 +66,24 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow Postman/cURL/Electron
+      if (!origin) return callback(null, true); 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
         return callback(new Error("CORS blocked: " + origin), false);
       }
     },
-    credentials: true, // allow cookies/authorization headers
+    credentials: true, 
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Explicit preflight handler for OPTIONS requests
 app.options("*", cors());
-
-// Middleware to parse JSON request bodies
 app.use(express.json());
 
-
-// safe headers fallback for proxies that might strip things (keeps preflight intact)
+// safe headers fallback
 app.use((req, res, next) => {
-  // If Access-Control-Allow-Origin isn't present, set it to the origin or '*'
   if (!res.getHeader('Access-Control-Allow-Origin')) {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   }
@@ -105,9 +99,6 @@ app.use((req, res, next) => {
 
 // At the top of index.js
 const connectedUsers = new Map();
-
-
-
 
 // ------------------ Socket.IO ------------------
 const io = new Server(server, {
@@ -126,7 +117,6 @@ io.on('connection', (socket) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // Expect the frontend to send the userId after auth
   socket.on("register", (userId) => {
     connectedUsers.set(userId, socket.id);
     console.log(`User ${userId} registered with socket ${socket.id}`);
@@ -149,17 +139,14 @@ const UPLOADS_RESULTS_DIR = path.join(UPLOADS_BASE_DIR, 'results');
 
 (async () => {
   try {
-    // Use fs.promises.mkdir for async/await
     await fs.promises.mkdir(UPLOADS_BASE_DIR, { recursive: true });
     await fs.promises.mkdir(UPLOADS_RESULTS_DIR, { recursive: true });
-
     console.log('✅ Uploads directories ensured:', UPLOADS_BASE_DIR, UPLOADS_RESULTS_DIR);
   } catch (err) {
     console.error('❌ Failed to ensure uploads directories:', err);
   }
 })();
 
-// expose uploads statically
 app.use('/uploads', express.static(UPLOADS_BASE_DIR));
 
 // ------------------ Helpers ------------------
@@ -173,6 +160,21 @@ function generateReceiptNumber() {
   return `REC-${timestamp}-${random}`.toUpperCase();
 }
 
+// ✅ NEW HELPER: Safely parses currency to avoid 119,999.99 error
+function sanitizeCurrency(value) {
+  if (!value) return 0;
+  // Remove commas, convert to float
+  const floatVal = parseFloat(value.toString().replace(/,/g, ''));
+  // Round to 2 decimals using epsilon to fix floating point math
+  return Math.round((floatVal + Number.EPSILON) * 100) / 100;
+}
+
+// Utility to format amounts with commas
+const formatAmount = (amount) => {
+  if (amount === null || amount === undefined) return null;
+  return Number(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+};
+
 // ------------------ Postgres Pool ------------------
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -185,13 +187,7 @@ const pool = new Pool({
   },
 });
 
-// Utility to format amounts with commas
-const formatAmount = (amount) => {
-  if (amount === null || amount === undefined) return null;
-  return Number(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 });
-};
-
-// test DB connection but don't crash EB if DB is temporarily unreachable
+// test DB connection
 (async () => {
   try {
     const client = await pool.connect();
@@ -199,22 +195,19 @@ const formatAmount = (amount) => {
     client.release();
   } catch (err) {
     console.error('Warning: Failed to connect to DB on startup:', err.message);
-    // continue — fail more gracefully on route usage
   }
 })();
 pool.on('error', (err) => console.error('Unexpected error on idle client:', err));
 
-// ------------------ Health endpoints (VERY IMPORTANT for EB) ------------------
-app.get('/', (req, res) => res.status(200).send('OK'));                  // EB default health path
+// ------------------ Health endpoints ------------------
+app.get('/', (req, res) => res.status(200).send('OK'));                  
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
-// ------------------ API Routes (complete) ------------------
+// ------------------ API Routes ------------------
 
-// Basic welcome
 app.get('/api', (req, res) => res.send('Welcome to the ERP Backend API!'));
 
-// DB test route
 app.get('/api/test-db', async (req, res) => {
   try {
     const client = await pool.connect();
@@ -231,7 +224,7 @@ app.get('/api/test-db', async (req, res) => {
 app.post('/api/register', async (req, res) => {
   const { username, password, email, phone_number, full_name } = req.body;
   if (!username || !password || !email || !full_name) {
-    return res.status(400).json({ message: 'All required fields (username, password, email, full_name) must be provided.' });
+    return res.status(400).json({ message: 'All required fields must be provided.' });
   }
   try {
     const existingUser = await pool.query('SELECT id FROM users WHERE username = $1 OR email = $2', [username, email]);
@@ -355,7 +348,6 @@ app.patch("/api/staff-list/:id/permission", auth, async (req, res) => {
     const { can_download } = req.body;
     const staffId = req.params.id;
 
-    // Only allow if current user is admin
     if (req.user.role !== "admin") {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -385,8 +377,7 @@ app.patch("/api/staff-list/:id/permission", auth, async (req, res) => {
 });
 
 
-// backend/src/index.js
-
+// ---------- Delete Result ----------
 app.delete(
   '/api/results/:id',
   auth,
@@ -395,7 +386,6 @@ app.delete(
     const resultId = req.params.id;
 
     try {
-      // 1. Fetch file info (use file_path now ✅)
       const result = await pool.query(
         'SELECT file_path FROM patient_results_files WHERE file_id = $1',
         [resultId]
@@ -407,15 +397,13 @@ app.delete(
 
       const filePath = result.rows[0].file_path;
 
-      // 2. Delete from DigitalOcean Spaces using file_path directly
       await s3Client.send(
         new DeleteObjectCommand({
           Bucket: process.env.DO_SPACES_BUCKET,
-          Key: filePath, // ✅ exact S3 key we stored
+          Key: filePath, 
         })
       );
 
-      // 3. Delete from DB
       await pool.query(
         'DELETE FROM patient_results_files WHERE file_id = $1',
         [resultId]
@@ -433,26 +421,17 @@ app.delete(
 );
 
 
-// ---------- Patient creation (transactional) ----------
+// ---------- Patient creation (FIXED Currency) ----------
 app.post(
   '/api/patients',
   auth,
   authorizeRoles('medical_staff', 'admin'),
   async (req, res) => {
     const {
-      patient_name,
-      gender,
-      contact_email,
-      contact_phone_number,
-      radiographer_name,
-      radiologist_name,
-      remarks,
-      age,
-      weight_kg,
-      referral_hospital,
-      referring_doctor,
-      payment_type,
-      examinations
+      patient_name, gender, contact_email, contact_phone_number,
+      radiographer_name, radiologist_name, remarks,
+      age, weight_kg, referral_hospital, referring_doctor,
+      payment_type, examinations
     } = req.body;
 
     const recordedByStaffId = req.user?.id;
@@ -462,7 +441,6 @@ app.post(
     }
 
     try {
-      // Generate unique identifiers
       let serialNumber = `SN-${Date.now()}-${String(Math.floor(Math.random() * 10000)).padStart(4,'0')}`;
       let mriCode = generateMriCode();
       let uniqueCheck = await pool.query(
@@ -479,17 +457,16 @@ app.post(
       const numericAge = age != null ? parseInt(age) : null;
       const numericWeight = weight_kg != null ? parseFloat(weight_kg) : null;
 
-      // Calculate total amount
+      // ✅ FIX: Use sanitizeCurrency for summing
       const totalAmount = examinations.reduce((sum, exam) => {
-        const amt = parseFloat((exam.amount || 0).toString().replace(/,/g, ''));
-        return sum + (isNaN(amt) ? 0 : amt);
+        const amt = sanitizeCurrency(exam.amount);
+        return sum + amt;
       }, 0);
 
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        // Insert patient
         const newPatientResult = await client.query(
           `INSERT INTO mri_patients (
             serial_number, patient_name, gender, contact_email, contact_phone_number,
@@ -500,24 +477,10 @@ app.post(
           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
           RETURNING *`,
           [
-            serialNumber,
-            patient_name,
-            gender,
-            contact_email,
-            contact_phone_number,
-            mriCode,
-            recordedByStaffId,
-            radiographer_name,
-            radiologist_name,
-            remarks,
-            numericAge,
-            numericWeight,
-            referral_hospital,
-            referring_doctor,
-            totalAmount,
-            receiptNumber,
-            payment_type,
-            'Not Paid',
+            serialNumber, patient_name, gender, contact_email, contact_phone_number,
+            mriCode, recordedByStaffId, radiographer_name, radiologist_name, remarks,
+            numericAge, numericWeight, referral_hospital, referring_doctor,
+            totalAmount, receiptNumber, payment_type, 'Not Paid',
             examinations.map(e => e.name).join(', '),
             totalAmount
           ]
@@ -528,7 +491,8 @@ app.post(
         // Insert examinations
         const examInserts = [];
         for (const exam of examinations) {
-          const amount = parseFloat((exam.amount || 0).toString().replace(/,/g, ''));
+          // ✅ FIX: Use sanitizeCurrency for individual items
+          const amount = sanitizeCurrency(exam.amount);
           const insert = await client.query(
             'INSERT INTO patient_examinations (patient_id, exam_name, exam_amount) VALUES ($1,$2,$3) RETURNING id, exam_name, exam_amount',
             [newPatient.id, exam.name, amount]
@@ -568,7 +532,6 @@ app.post(
 
 
 // ---------- Patients list with filters ----------
-// GET /api/patients?includeExams=true
 app.get('/api/patients', auth, authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'), async (req, res) => {
   try {
     const { search, searchField, gender, recordedBy, startDate, endDate, includeExams } = req.query;
@@ -696,7 +659,6 @@ app.get(
   authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'),
   async (req, res) => {
     try {
-      // Example: total results, pending, issued
       const totalResult = await pool.query(`SELECT COUNT(*) FROM patient_results_files`);
       const pendingResult = await pool.query(`SELECT COUNT(*) FROM patient_results_files WHERE result_status = 'Pending'`);
       const issuedResult = await pool.query(`SELECT COUNT(*) FROM patient_results_files WHERE result_status = 'Issued'`);
@@ -716,8 +678,7 @@ app.get(
 
 
 
-// Update Patient Record (Medical Staff & Admin Access)
-// Update Patient Record (Medical Staff & Admin Access)
+// ---------- Update Patient Record (FIXED Currency) ----------
 app.patch(
   "/api/patients/:id",
   auth,
@@ -725,60 +686,34 @@ app.patch(
   async (req, res) => {
     const { id } = req.params;
     const {
-      patient_name,
-      gender,
-      contact_email,
-      contact_phone_number,
-      age,
-      weight_kg,
-      referral_hospital,
-      referring_doctor,
-      radiographer_name,
-      radiologist_name,
-      remarks,
-      payment_type,
-      payment_status,
-      recorded_by_staff_name,
-      recorded_by_staff_email,
-      examinations // [{ id?, name, amount }]
+      patient_name, gender, contact_email, contact_phone_number, age, weight_kg,
+      referral_hospital, referring_doctor, radiographer_name, radiologist_name,
+      remarks, payment_type, payment_status, recorded_by_staff_name, recorded_by_staff_email,
+      examinations 
     } = req.body;
 
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
 
-      const existingPatientResult = await client.query(
-        "SELECT * FROM mri_patients WHERE id = $1",
-        [id]
-      );
-
+      const existingPatientResult = await client.query("SELECT * FROM mri_patients WHERE id = $1", [id]);
       if (existingPatientResult.rows.length === 0) {
         await client.query("ROLLBACK");
         client.release();
         return res.status(404).json({ message: "Patient record not found." });
       }
 
-      // 1️⃣ Prepare update fields
       const updateFields = [];
       const queryParams = [];
       let paramIndex = 1;
 
       const fieldsToUpdate = {
-        patient_name,
-        gender,
-        contact_email,
-        contact_phone_number,
+        patient_name, gender, contact_email, contact_phone_number,
         age: age !== undefined ? parseInt(age) : undefined,
         weight_kg: weight_kg !== undefined ? parseFloat(weight_kg) : undefined,
-        referral_hospital,
-        referring_doctor,
-        radiographer_name,
-        radiologist_name,
-        remarks,
-        payment_type,
-        payment_status,
-        recorded_by_staff_name,   // ✅ include these now
-        recorded_by_staff_email   // ✅ include these now
+        referral_hospital, referring_doctor, radiographer_name, radiologist_name,
+        remarks, payment_type, payment_status,
+        recorded_by_staff_name, recorded_by_staff_email
       };
 
       for (const [key, value] of Object.entries(fieldsToUpdate)) {
@@ -788,19 +723,17 @@ app.patch(
         }
       }
 
-      // 2️⃣ Handle examinations
+      // Handle examinations
       let totalAmount = 0;
 
       if (Array.isArray(examinations)) {
-        const existingExamsResult = await client.query(
-          "SELECT id FROM patient_examinations WHERE patient_id = $1",
-          [id]
-        );
+        const existingExamsResult = await client.query("SELECT id FROM patient_examinations WHERE patient_id = $1", [id]);
         const existingExamIds = new Set(existingExamsResult.rows.map(r => r.id));
         const updatedExamIds = new Set();
 
         for (const exam of examinations) {
-          const amount = parseFloat(String(exam.amount || 0).replace(/,/g, ""));
+          // ✅ FIX: Use sanitizeCurrency for updates too
+          const amount = sanitizeCurrency(exam.amount);
           totalAmount += amount;
 
           if (exam.id && existingExamIds.has(exam.id)) {
@@ -818,17 +751,12 @@ app.patch(
           }
         }
 
-        // delete removed exams
         for (const existingId of existingExamIds) {
           if (!updatedExamIds.has(existingId)) {
-            await client.query(
-              "DELETE FROM patient_examinations WHERE id = $1 AND patient_id = $2",
-              [existingId, id]
-            );
+            await client.query("DELETE FROM patient_examinations WHERE id = $1 AND patient_id = $2", [existingId, id]);
           }
         }
 
-        // also update summary columns in mri_patients
         updateFields.push(`examination_test_name = $${paramIndex++}`);
         queryParams.push(examinations.map(e => e.name).join(", "));
 
@@ -839,110 +767,49 @@ app.patch(
         queryParams.push(totalAmount);
       }
 
-      if (updateFields.length === 0) {
-        await client.query("ROLLBACK");
-        client.release();
-        return res.status(400).json({ message: "No fields to update." });
+      if (updateFields.length > 0) {
+        queryParams.push(id);
+        const updateQuery = `UPDATE mri_patients SET ${updateFields.join(", ")}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
+        await client.query(updateQuery, queryParams);
       }
-
-      queryParams.push(id);
-
-      const updateQuery = `
-        UPDATE mri_patients
-        SET ${updateFields.join(", ")}, updated_at = NOW()
-        WHERE id = $${paramIndex}
-        RETURNING *;
-      `;
-
-      const updatedPatientResult = await client.query(updateQuery, queryParams);
 
       await client.query("COMMIT");
 
-      // 3️⃣ Return the updated patient with exams (same shape as GET)
+      // Return updated record
       const result = await pool.query(
-        `
-        SELECT 
-          p.id,
-          p.serial_number,
-          p.patient_name,
-          p.gender,
-          p.age,
-          p.weight_kg,
-          p.contact_email,
-          p.contact_phone_number,
-          p.referral_hospital,
-          p.referring_doctor,
-          p.radiographer_name,
-          p.radiologist_name,
-          p.remarks,
-          p.mri_code,
-          p.mri_date_time,
-          p.receipt_number,
-          p.payment_type,
-          p.payment_status,
-          p.total_amount,
-          p.created_at,
-          p.updated_at,
-          p.examination_test_name,  -- ✅ include from mri_patients
-          p.examination_breakdown_amount_naira, -- ✅ include too
-          p.recorded_by_staff_name,   -- ✅ return in response
-          p.recorded_by_staff_email,  -- ✅ return in response
+        `SELECT p.id, p.serial_number, p.patient_name, p.gender, p.age, p.weight_kg,
+          p.contact_email, p.contact_phone_number, p.referral_hospital, p.referring_doctor,
+          p.radiographer_name, p.radiologist_name, p.remarks, p.mri_code, p.mri_date_time,
+          p.receipt_number, p.payment_type, p.payment_status, p.total_amount,
+          p.created_at, p.updated_at, p.examination_test_name, p.examination_breakdown_amount_naira,
+          p.recorded_by_staff_name, p.recorded_by_staff_email,
           COALESCE(
             json_agg(
-              json_build_object(
-                'id', e.id,
-                'name', e.exam_name,
-                'amount', e.exam_amount
-              )
-            ) FILTER (WHERE e.id IS NOT NULL),
-            '[]'
+              json_build_object('id', e.id, 'name', e.exam_name, 'amount', e.exam_amount)
+            ) FILTER (WHERE e.id IS NOT NULL), '[]'
           ) AS examinations
         FROM mri_patients p
-        LEFT JOIN patient_examinations e 
-          ON p.id = e.patient_id
-        WHERE p.id = $1
-        GROUP BY p.id;
-        `,
+        LEFT JOIN patient_examinations e ON p.id = e.patient_id
+        WHERE p.id = $1 GROUP BY p.id`,
         [id]
       );
-            console.log("Patient result:", result.rows[0]);
-            res.json(result.rows[0]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Patient not found" });
-    }
+      const patient = result.rows[0];
+      patient.total_amount = formatAmount(patient.total_amount);
+      patient.examination_breakdown_amount_naira = formatAmount(patient.examination_breakdown_amount_naira);
+      patient.examinations = patient.examinations.map(exam => ({ ...exam, amount: formatAmount(exam.amount) }));
 
-    const patient = result.rows[0]; // Get the patient object
+      res.json(patient);
 
-    // Format amounts with commas ✅
-    patient.total_amount = formatAmount(patient.total_amount);
-    patient.examination_breakdown_amount_naira = formatAmount(patient.examination_breakdown_amount_naira);
-
-    // Also format nested examinations
-    patient.examinations = patient.examinations.map(exam => ({
-      ...exam,
-      amount: formatAmount(exam.amount)
-    }));
-
-    res.json(patient);
-
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("Error fetching patient details:", err);
-    res.status(500).json({ message: "Failed to fetch patient details" });
-  } finally {
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error("Error updating patient:", err);
+      res.status(500).json({ message: "Failed to update patient details" });
+    } finally {
       client.release();
     }
   }
 );
-
-
-
-
-
-
-
-
 
 
 app.patch(
@@ -951,8 +818,8 @@ app.patch(
   authorizeRoles('admin', 'medical_staff', 'financial_admin'),
   async (req, res) => {
     const patientId = req.params.patientId;
-    const { status } = req.body; // Expect { status: 'Approved' | 'Pending' | 'Not Paid' }
-    const approverId = req.user.id; // Authenticated user performing approval
+    const { status } = req.body; 
+    const approverId = req.user.id; 
 
     const validStatuses = ['Approved', 'Pending', 'Not Paid'];
     if (!validStatuses.includes(status)) {
@@ -1327,7 +1194,7 @@ function imageToBase64(filePath) {
   return `data:image/${ext};base64,${fileData.toString("base64")}`;
 }
 
-// ---------- Get Single Patient Details (Corrected) ----------
+// ---------- Get Single Patient Details (Crash FIX Applied Here) ----------
 app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1335,29 +1202,14 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
     const result = await pool.query(
       `
       SELECT 
-        p.id,
-        p.serial_number,
-        p.patient_name,
-        p.gender,
-        p.age,
-        p.weight_kg,
-        p.contact_email,
-        p.contact_phone_number,
-        p.referral_hospital,
-        p.referring_doctor,
-        p.radiographer_name,
-        p.radiologist_name,
-        p.remarks,
-        p.mri_code,
-        p.mri_date_time,
-        p.receipt_number,
-        p.payment_type,
-        p.payment_status,
-        p.total_amount,
-        p.created_at,
-        p.updated_at,
-        p.examination_test_name,
-        p.examination_breakdown_amount_naira,
+        p.id, p.serial_number, p.patient_name, p.gender, p.age, p.weight_kg,
+        p.contact_email, p.contact_phone_number, p.referral_hospital, p.referring_doctor,
+        p.radiographer_name, p.radiologist_name, p.remarks, p.mri_code, p.mri_date_time,
+        p.receipt_number, p.payment_type, p.payment_status, p.total_amount,
+        p.created_at, p.updated_at, p.examination_test_name, p.examination_breakdown_amount_naira,
+        p.recorded_by_staff_id,
+        u.full_name AS recorded_by_staff_name,
+        u.email AS recorded_by_staff_email,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1369,10 +1221,10 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
           '[]'
         ) AS examinations
       FROM mri_patients p
-      LEFT JOIN patient_examinations e 
-        ON p.id = e.patient_id
+      LEFT JOIN patient_examinations e ON p.id = e.patient_id
+      LEFT JOIN users u ON p.recorded_by_staff_id = u.id 
       WHERE p.id = $1
-      GROUP BY p.id;
+      GROUP BY p.id, u.id;
       `,
       [id]
     );
@@ -1383,11 +1235,10 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
 
     const patient = result.rows[0];
 
-    // Format amounts with commas before sending
+    // Format amounts
     patient.total_amount = formatAmount(patient.total_amount);
     patient.examination_breakdown_amount_naira = formatAmount(patient.examination_breakdown_amount_naira);
 
-    // Also format nested examinations
     if (patient.examinations && Array.isArray(patient.examinations)) {
       patient.examinations = patient.examinations.map(exam => ({
         ...exam,
@@ -1395,12 +1246,11 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
       }));
     }
 
-    // ✅ Send the response exactly ONCE here
+    // ✅ FIX: Send response exactly ONCE
     return res.json(patient);
 
   } catch (err) {
     console.error("Error fetching patient details:", err);
-    // Only send error response if headers haven't been sent yet
     if (!res.headersSent) {
         return res.status(500).json({ message: "Failed to fetch patient details" });
     }
