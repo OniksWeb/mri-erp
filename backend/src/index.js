@@ -269,7 +269,7 @@ app.post('/api/login', async (req, res) => {
       return res.status(403).json({ message: 'Account not yet verified by an administrator.' });
     }
 
-    // ✅ CHANGED: Set expiresIn to '5m' (5 minutes) per your request
+    // ✅ CHANGED: Set expiresIn to '30m' (30 minutes) per your request
     const token = jwt.sign(
       {
         id: user.id,
@@ -278,7 +278,7 @@ app.post('/api/login', async (req, res) => {
         can_download: user.can_download 
       },
       JWT_SECRET,
-      { expiresIn: '5m' } 
+      { expiresIn: '30m' } 
     );
 
     return res.status(200).json({
@@ -678,138 +678,64 @@ app.get(
 
 
 
-// ---------- Update Patient Record (FIXED Currency) ----------
-app.patch(
-  "/api/patients/:id",
-  auth,
-  authorizeRoles("medical_staff", "admin", "doctor", "financial_admin"),
-  async (req, res) => {
+// ---------- Update Patient (Optimized Connection & Fixes Deadlock) ----------
+app.patch("/api/patients/:id", auth, authorizeRoles("medical_staff", "admin", "doctor", "financial_admin"), async (req, res) => {
     const { id } = req.params;
-    const {
-      patient_name, gender, contact_email, contact_phone_number, age, weight_kg,
-      referral_hospital, referring_doctor, radiographer_name, radiologist_name,
-      remarks, payment_type, payment_status, recorded_by_staff_name, recorded_by_staff_email,
-      examinations 
-    } = req.body;
+    const { patient_name, gender, contact_email, contact_phone_number, age, weight_kg, referral_hospital, referring_doctor, radiographer_name, radiologist_name, remarks, payment_type, examinations } = req.body;
 
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-
-      const existingPatientResult = await client.query("SELECT * FROM mri_patients WHERE id = $1", [id]);
-      if (existingPatientResult.rows.length === 0) {
+      
+      // 1. Check existence using SAME client (Prevents Deadlock)
+      const existingPatient = await client.query("SELECT id FROM mri_patients WHERE id = $1", [id]);
+      if (existingPatient.rows.length === 0) {
         await client.query("ROLLBACK");
-        client.release();
-        return res.status(404).json({ message: "Patient record not found." });
+        // Note: We do NOT release here manually. We let the 'finally' block handle it.
+        // This prevents the "Double Release" crash that freezes your server.
+        return res.status(404).json({ message: "Patient not found" });
       }
 
-      const updateFields = [];
-      const queryParams = [];
-      let paramIndex = 1;
-
-      const fieldsToUpdate = {
-        patient_name, gender, contact_email, contact_phone_number,
-        age: age !== undefined ? parseInt(age) : undefined,
-        weight_kg: weight_kg !== undefined ? parseFloat(weight_kg) : undefined,
-        referral_hospital, referring_doctor, radiographer_name, radiologist_name,
-        remarks, payment_type, payment_status,
-        recorded_by_staff_name, recorded_by_staff_email
-      };
-
-      for (const [key, value] of Object.entries(fieldsToUpdate)) {
-        if (value !== undefined) {
-          updateFields.push(`${key} = $${paramIndex++}`);
-          queryParams.push(value);
-        }
-      }
-
-      // Handle examinations
-      let totalAmount = 0;
-
-      if (Array.isArray(examinations)) {
-        const existingExamsResult = await client.query("SELECT id FROM patient_examinations WHERE patient_id = $1", [id]);
-        const existingExamIds = new Set(existingExamsResult.rows.map(r => r.id));
-        const updatedExamIds = new Set();
-
-        for (const exam of examinations) {
-          // ✅ FIX: Use sanitizeCurrency for updates too
-          const amount = sanitizeCurrency(exam.amount);
-          totalAmount += amount;
-
-          if (exam.id && existingExamIds.has(exam.id)) {
-            updatedExamIds.add(exam.id);
-            await client.query(
-              "UPDATE patient_examinations SET exam_name = $1, exam_amount = $2 WHERE id = $3 AND patient_id = $4",
-              [exam.name, amount, exam.id, id]
-            );
-          } else {
-            const insertResult = await client.query(
-              "INSERT INTO patient_examinations (patient_id, exam_name, exam_amount) VALUES ($1,$2,$3) RETURNING id",
-              [id, exam.name, amount]
-            );
-            updatedExamIds.add(insertResult.rows[0].id);
-          }
-        }
-
-        for (const existingId of existingExamIds) {
-          if (!updatedExamIds.has(existingId)) {
-            await client.query("DELETE FROM patient_examinations WHERE id = $1 AND patient_id = $2", [existingId, id]);
-          }
-        }
-
-        updateFields.push(`examination_test_name = $${paramIndex++}`);
-        queryParams.push(examinations.map(e => e.name).join(", "));
-
-        updateFields.push(`total_amount = $${paramIndex++}`);
-        queryParams.push(totalAmount);
-
-        updateFields.push(`examination_breakdown_amount_naira = $${paramIndex++}`);
-        queryParams.push(totalAmount);
-      }
-
-      if (updateFields.length > 0) {
-        queryParams.push(id);
-        const updateQuery = `UPDATE mri_patients SET ${updateFields.join(", ")}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
-        await client.query(updateQuery, queryParams);
-      }
-
-      await client.query("COMMIT");
-
-      // Return updated record
-      const result = await pool.query(
-        `SELECT p.id, p.serial_number, p.patient_name, p.gender, p.age, p.weight_kg,
-          p.contact_email, p.contact_phone_number, p.referral_hospital, p.referring_doctor,
-          p.radiographer_name, p.radiologist_name, p.remarks, p.mri_code, p.mri_date_time,
-          p.receipt_number, p.payment_type, p.payment_status, p.total_amount,
-          p.created_at, p.updated_at, p.examination_test_name, p.examination_breakdown_amount_naira,
-          p.recorded_by_staff_name, p.recorded_by_staff_email,
-          COALESCE(
-            json_agg(
-              json_build_object('id', e.id, 'name', e.exam_name, 'amount', e.exam_amount)
-            ) FILTER (WHERE e.id IS NOT NULL), '[]'
-          ) AS examinations
-        FROM mri_patients p
-        LEFT JOIN patient_examinations e ON p.id = e.patient_id
-        WHERE p.id = $1 GROUP BY p.id`,
-        [id]
+      // 2. Update basic fields
+      await client.query(
+        `UPDATE mri_patients SET 
+         patient_name=$1, gender=$2, contact_email=$3, contact_phone_number=$4, age=$5, weight_kg=$6, 
+         referral_hospital=$7, referring_doctor=$8, radiographer_name=$9, radiologist_name=$10, remarks=$11, 
+         payment_type=$12, updated_at=NOW() 
+         WHERE id=$13`,
+        [patient_name, gender, contact_email, contact_phone_number, age, weight_kg, referral_hospital, referring_doctor, radiographer_name, radiologist_name, remarks, payment_type, id]
       );
 
-      const patient = result.rows[0];
-      patient.total_amount = formatAmount(patient.total_amount);
-      patient.examination_breakdown_amount_naira = formatAmount(patient.examination_breakdown_amount_naira);
-      patient.examinations = patient.examinations.map(exam => ({ ...exam, amount: formatAmount(exam.amount) }));
-
-      res.json(patient);
+      // 3. Update exams (Delete & Re-insert method is safer for consistency)
+      if (Array.isArray(examinations)) {
+        await client.query("DELETE FROM patient_examinations WHERE patient_id = $1", [id]);
+        
+        let totalAmount = 0;
+        for (const exam of examinations) {
+            // ✅ FIX: Apply currency sanitizer to prevent 119,999.99 errors
+            const amount = sanitizeCurrency(exam.amount);
+            totalAmount += amount;
+            await client.query("INSERT INTO patient_examinations (patient_id, exam_name, exam_amount) VALUES ($1, $2, $3)", [id, exam.name, amount]);
+        }
+        
+        // Update total in parent table
+        await client.query("UPDATE mri_patients SET total_amount=$1, examination_test_name=$2 WHERE id=$3", 
+            [totalAmount, examinations.map(e => e.name).join(', '), id]);
+      }
+      
+      await client.query("COMMIT");
+      
+      // ✅ SUCCESS: Send response immediately.
+      res.json({ message: "Patient updated successfully" }); 
 
     } catch (err) {
       await client.query("ROLLBACK");
-      console.error("Error updating patient:", err);
-      res.status(500).json({ message: "Failed to update patient details" });
+      console.error('❌ Update Patient Error:', err);
+      res.status(500).json({ message: "Update failed" });
     } finally {
-      client.release();
+      client.release(); // ✅ CRITICAL: Connection released EXACTLY ONCE here.
     }
-  }
-);
+});
 
 
 app.patch(
