@@ -1326,7 +1326,7 @@ function imageToBase64(filePath) {
   const ext = path.extname(filePath).substring(1); // "png" or "jpg"
   return `data:image/${ext};base64,${fileData.toString("base64")}`;
 }
-
+// ---------- Get Single Patient Details (Corrected) ----------
 app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1355,8 +1355,8 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
         p.total_amount,
         p.created_at,
         p.updated_at,
-        p.examination_test_name,  -- ✅ include from mri_patients
-        p.examination_breakdown_amount_naira, -- ✅ include too
+        p.examination_test_name,
+        p.examination_breakdown_amount_naira,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1375,30 +1375,34 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
       `,
       [id]
     );
-            console.log("Patient result:", result.rows[0]);
-            res.json(result.rows[0]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Patient not found" });
     }
 
-    res.json(result.rows[0]);
+    const patient = result.rows[0];
 
-    // Format amounts with commas ✅
+    // Format amounts with commas before sending
     patient.total_amount = formatAmount(patient.total_amount);
     patient.examination_breakdown_amount_naira = formatAmount(patient.examination_breakdown_amount_naira);
 
     // Also format nested examinations
-    patient.examinations = patient.examinations.map(exam => ({
-      ...exam,
-      amount: formatAmount(exam.amount)
-    }));
+    if (patient.examinations && Array.isArray(patient.examinations)) {
+      patient.examinations = patient.examinations.map(exam => ({
+        ...exam,
+        amount: formatAmount(exam.amount)
+      }));
+    }
 
+    // ✅ Send the response exactly ONCE
     res.json(patient);
 
   } catch (err) {
     console.error("Error fetching patient details:", err);
-    res.status(500).json({ message: "Failed to fetch patient details" });
+    // Only send error response if headers haven't been sent yet
+    if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to fetch patient details" });
+    }
   }
 });
 
