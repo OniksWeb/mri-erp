@@ -109,7 +109,7 @@ const totalAmount = useMemo(() => {
 }, [formData.examinations]);
 
 
-  const handleSubmit = async (event) => {
+const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
@@ -117,6 +117,7 @@ const totalAmount = useMemo(() => {
 
     // --- Frontend Validation ---
     const { patient_name, contact_email, examinations, age, weight_kg, payment_type } = formData;
+    
     if (!patient_name.trim()) {
       setError('Patient Name is required.');
       setLoading(false);
@@ -154,7 +155,7 @@ const totalAmount = useMemo(() => {
         return;
       }
     }
-    // --- End Frontend Validation ---
+    // --- End Validation ---
 
     if (!token) {
       setError('Authentication token missing. Please log in again.');
@@ -163,38 +164,53 @@ const totalAmount = useMemo(() => {
     }
 
     try {
+      // 1. Setup a timeout for the network request (prevents infinite hanging)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
       const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData), // Send all form data, including examinations
+        body: JSON.stringify(formData),
+        signal: controller.signal // Connect the timeout
       });
+
+      clearTimeout(timeoutId); // Clear timeout if response comes back in time
 
       const data = await response.json();
 
       if (response.ok) {
         setSuccess(true);
         setError('');
+        
+        // 2. Alert blocks user input. Once they click OK, we navigate IMMEDIATELY.
+        // No 2-second delay means no "frozen" feeling.
         alert(data.message || 'Patient record added successfully!');
-        setFormData({ // Clear form and reset examinations to initial state after successful submission
+        
+        setFormData({ 
           patient_name: '', gender: '', contact_email: '', contact_phone_number: '',
           radiographer_name: '', radiologist_name: '', remarks: '',
           age: '', weight_kg: '', referral_hospital: '', referring_doctor: '',
           payment_type: '',
           examinations: [{ id: Date.now(), name: '', amount: '' }],
         });
-        setTimeout(() => {
-          navigate('/patients');
-        }, 2000);
+
+        navigate('/patients'); // Redirect immediately
       } else {
         setError(data.message || 'Failed to add patient record.');
       }
     } catch (err) {
       console.error('Error adding patient record:', err);
-      setError('Network error or server unavailable. Please try again.');
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Server is taking too long to respond.');
+      } else {
+        setError('Network error or server unavailable. Please try again.');
+      }
     } finally {
+      // 3. Safety Valve: This ensures the loading spinner ALWAYS stops
       setLoading(false);
     }
   };
