@@ -18,7 +18,9 @@ import {
   Divider,
   Grid,
   InputAdornment,
-  Stack
+  Stack,
+  Snackbar, // ✅ Alert Replacement
+  Backdrop  // ✅ Loading Overlay
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
@@ -48,15 +50,17 @@ function AddPatientPage() {
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  
+  // ✅ Notification State (Fixes "openSnackbar is not defined")
+  const [openSnackbar, setOpenSnackbar] = useState(false);
 
-  // ✅ 1. LOAD DRAFT (Robuster Version)
+  // 1. LOAD DRAFT (Safe Merge)
   useEffect(() => {
     const savedDraft = localStorage.getItem('patient_form_draft');
     if (savedDraft) {
       try {
         const parsedDraft = JSON.parse(savedDraft);
-        // MERGE with initial state to ensure no fields are undefined (prevents input locking)
+        // Merge with initial state to prevent undefined inputs (The "Freezing" Fix)
         setFormData({ ...initialFormState, ...parsedDraft });
         console.log("📝 Restored draft from storage");
       } catch (err) {
@@ -66,10 +70,9 @@ function AddPatientPage() {
     }
   }, []);
 
-  // ✅ 2. SAVE DRAFT
+  // 2. SAVE DRAFT (Auto-Save on Change)
   useEffect(() => {
     const hasData = formData.patient_name || formData.contact_email || formData.age || (formData.examinations[0] && formData.examinations[0].name);
-    
     if (hasData) {
       localStorage.setItem('patient_form_draft', JSON.stringify(formData));
     }
@@ -97,9 +100,7 @@ function AddPatientPage() {
   const handleExaminationChange = (id, field, value) => {
     setFormData(prev => {
       const updatedExams = prev.examinations.map(exam =>
-        exam.id === id
-          ? { ...exam, [field]: value }
-          : exam
+        exam.id === id ? { ...exam, [field]: value } : exam
       );
       return { ...prev, examinations: updatedExams };
     });
@@ -108,10 +109,7 @@ function AddPatientPage() {
   const handleAddExamination = () => {
     setFormData(prev => ({
       ...prev,
-      examinations: [
-        ...prev.examinations,
-        { id: Date.now(), name: '', amount: '' }
-      ]
+      examinations: [...prev.examinations, { id: Date.now(), name: '', amount: '' }]
     }));
   };
 
@@ -132,50 +130,24 @@ function AddPatientPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    setSuccess('');
-    setLoading(true);
+    setLoading(true); // ✅ Triggers the Backdrop Overlay
 
-    // --- Frontend Validation ---
+    // --- Validation ---
     const { patient_name, contact_email, examinations, age, weight_kg, payment_type } = formData;
     
-    if (!patient_name?.trim()) {
-      setError('Patient Name is required.');
-      setLoading(false);
-      return;
-    }
-    if (!contact_email?.trim() || !contact_email.includes('@')) {
-        setError('A valid Email Address is required.');
-        setLoading(false);
-        return;
-    }
-    if (!age || isNaN(age) || age <= 0) {
-        setError('Age must be a positive number.');
-        setLoading(false);
-        return;
-    }
-    if (!weight_kg || isNaN(weight_kg) || weight_kg <= 0) {
-        setError('Weight (kg) must be a positive number.');
-        setLoading(false);
-        return;
-    }
-    if (!payment_type) {
-        setError('Payment Type is required.');
-        setLoading(false);
-        return;
-    }
-    if (examinations.length === 0) {
-      setError('At least one examination is required.');
-      setLoading(false);
-      return;
-    }
+    if (!patient_name?.trim()) { setError('Patient Name is required.'); setLoading(false); return; }
+    if (!contact_email?.trim() || !contact_email.includes('@')) { setError('Valid Email required.'); setLoading(false); return; }
+    if (!age || isNaN(age) || age <= 0) { setError('Age must be a positive number.'); setLoading(false); return; }
+    if (!weight_kg || isNaN(weight_kg) || weight_kg <= 0) { setError('Weight must be positive.'); setLoading(false); return; }
+    if (!payment_type) { setError('Payment Type is required.'); setLoading(false); return; }
+    
     for (const exam of examinations) {
-      if (!exam.name?.trim() || !exam.amount || isNaN(exam.amount) || parseFloat(exam.amount) <= 0) {
-        setError('All examination names and positive amounts are required.');
+      if (!exam.name?.trim() || !exam.amount || parseFloat(exam.amount) <= 0) {
+        setError('All examinations need valid names and amounts.');
         setLoading(false);
         return;
       }
     }
-    // --- End Validation ---
 
     if (!token) {
       setError('Authentication token missing. Please log in again.');
@@ -198,22 +170,15 @@ function AddPatientPage() {
       });
 
       clearTimeout(timeoutId);
-
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(true);
-        setError('');
+        setOpenSnackbar(true); // ✅ Show smooth popup
+        localStorage.removeItem('patient_form_draft'); // ✅ Clear Draft
+        setFormData(initialFormState); // Reset Form
         
-        alert(data.message || 'Patient record added successfully!');
-        
-        // ✅ CLEAR DRAFT immediately after success
-        localStorage.removeItem('patient_form_draft');
-
-        // Reset form
-        setFormData(initialFormState);
-
-        navigate('/patients');
+        // Navigate after 1 second (Smooth transition)
+        setTimeout(() => navigate('/patients'), 1000); 
       } else {
         setError(data.message || 'Failed to add patient record.');
       }
@@ -225,7 +190,7 @@ function AddPatientPage() {
         setError('Network error or server unavailable. Please try again.');
       }
     } finally {
-      setLoading(false);
+      setLoading(false); // ✅ Hides Backdrop
     }
   };
 
@@ -241,61 +206,32 @@ function AddPatientPage() {
           </Typography>
         </Stack>
 
-        {error && (
-          <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert severity="success" sx={{ width: '100%', mb: 2 }}>
-            Patient record added successfully! Redirecting...
-          </Alert>
-        )}
+        {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
 
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
           {/* Patient Demographics */}
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Patient Demographics</Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              {/* ✅ FIXED: Added || '' to all inputs to prevent freezing */}
-              <TextField
-                margin="normal" required fullWidth
-                id="patient_name" label="Patient Name" name="patient_name"
-                value={formData.patient_name || ''} 
-                onChange={handleChange}
-              />
+              {/* ✅ FIXED: Added || '' to prevent input freezing */}
+              <TextField margin="normal" required fullWidth id="patient_name" label="Patient Name" name="patient_name"
+                value={formData.patient_name || ''} onChange={handleChange} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal" fullWidth select
-                id="gender" label="Gender" name="gender"
-                value={formData.gender || ''} 
-                onChange={handleChange}
-                size="medium"
-                sx={{ minWidth: 150 }}
-              >
+              <TextField margin="normal" fullWidth select id="gender" label="Gender" name="gender"
+                value={formData.gender || ''} onChange={handleChange} size="medium" sx={{ minWidth: 150 }}>
                 {genderOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
+                  <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
                 ))}
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal" required fullWidth
-                id="age" label="Age" name="age" type="number"
-                value={formData.age || ''} 
-                onChange={handleChange} inputProps={{ min: 0 }}
-              />
+              <TextField margin="normal" required fullWidth id="age" label="Age" name="age" type="number"
+                value={formData.age || ''} onChange={handleChange} inputProps={{ min: 0 }} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal" required fullWidth
-                id="weight_kg" label="Weight (kg)" name="weight_kg" type="number"
-                value={formData.weight_kg || ''} 
-                onChange={handleChange} inputProps={{ step: "0.1", min: 0 }}
-              />
+              <TextField margin="normal" required fullWidth id="weight_kg" label="Weight (kg)" name="weight_kg" type="number"
+                value={formData.weight_kg || ''} onChange={handleChange} inputProps={{ step: "0.1", min: 0 }} />
             </Grid>
           </Grid>
 
@@ -303,20 +239,12 @@ function AddPatientPage() {
           <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Contact Details</Typography>
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <TextField
-                margin="normal" required fullWidth
-                id="contact_email" label="Contact Email" name="contact_email" type="email"
-                value={formData.contact_email || ''} 
-                onChange={handleChange}
-              />
+              <TextField margin="normal" required fullWidth id="contact_email" label="Contact Email" name="contact_email" type="email"
+                value={formData.contact_email || ''} onChange={handleChange} />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                margin="normal" fullWidth
-                id="contact_phone_number" label="Contact Phone Number" name="contact_phone_number" type="tel"
-                value={formData.contact_phone_number || ''} 
-                onChange={handleChange}
-              />
+              <TextField margin="normal" fullWidth id="contact_phone_number" label="Contact Phone Number" name="contact_phone_number" type="tel"
+                value={formData.contact_phone_number || ''} onChange={handleChange} />
             </Grid>
           </Grid>
 
@@ -324,20 +252,12 @@ function AddPatientPage() {
           <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Referral Information</Typography>
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <TextField
-                margin="normal" fullWidth
-                id="referral_hospital" label="Referral Hospital" name="referral_hospital"
-                value={formData.referral_hospital || ''} 
-                onChange={handleChange}
-              />
+              <TextField margin="normal" fullWidth id="referral_hospital" label="Referral Hospital" name="referral_hospital"
+                value={formData.referral_hospital || ''} onChange={handleChange} />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                margin="normal" fullWidth
-                id="referring_doctor" label="Referring Doctor" name="referring_doctor"
-                value={formData.referring_doctor || ''} 
-                onChange={handleChange}
-              />
+              <TextField margin="normal" fullWidth id="referring_doctor" label="Referring Doctor" name="referring_doctor"
+                value={formData.referring_doctor || ''} onChange={handleChange} />
             </Grid>
           </Grid>
 
@@ -347,23 +267,11 @@ function AddPatientPage() {
           <Typography variant="h6" gutterBottom>Examination Details</Typography>
           {formData.examinations.map((exam, index) => (
             <Box key={exam.id} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <TextField
-                sx={{ mr: 2, flex: 3 }}
-                label={`Examination ${index + 1} Name`}
-                value={exam.name || ''} 
-                onChange={(e) => handleExaminationChange(exam.id, 'name', e.target.value)}
-                required
-              />
-              <TextField
-                sx={{ mr: 2, flex: 1 }}
-                label="Amount"
-                type="number"
-                inputProps={{ step: "0.01", min: "0" }}
-                value={exam.amount || ''} 
-                onChange={(e) => handleExaminationChange(exam.id, 'amount', e.target.value)}
-                required
-                InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }}
-              />
+              <TextField sx={{ mr: 2, flex: 3 }} label={`Examination ${index + 1} Name`}
+                value={exam.name || ''} onChange={(e) => handleExaminationChange(exam.id, 'name', e.target.value)} required />
+              <TextField sx={{ mr: 2, flex: 1 }} label="Amount" type="number" inputProps={{ step: "0.01", min: "0" }}
+                value={exam.amount || ''} onChange={(e) => handleExaminationChange(exam.id, 'amount', e.target.value)} required
+                InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }} />
               {formData.examinations.length > 1 && (
                 <IconButton onClick={() => handleRemoveExamination(exam.id)} color="error">
                   <RemoveCircleOutlineIcon />
@@ -371,17 +279,10 @@ function AddPatientPage() {
               )}
             </Box>
           ))}
-          <Button
-            startIcon={<AddIcon />}
-            onClick={handleAddExamination}
-            variant="outlined"
-            size="small"
-            sx={{ mb: 3 }}
-          >
+          <Button startIcon={<AddIcon />} onClick={handleAddExamination} variant="outlined" size="small" sx={{ mb: 3 }}>
             Add Another Examination
           </Button>
 
-          {/* Total Amount Display */}
           <Box sx={{ mt: 2, textAlign: 'right' }}>
               <Typography variant="h6">
                 Total Amount: ₦{Number(totalAmount).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -392,21 +293,10 @@ function AddPatientPage() {
 
           {/* Payment Details Section */}
           <Typography variant="h6" gutterBottom>Payment Details</Typography>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            select
-            id="payment_type"
-            label="Payment Type"
-            name="payment_type"
-            value={formData.payment_type || ''} 
-            onChange={handleChange}
-          >
+          <TextField margin="normal" required fullWidth select id="payment_type" label="Payment Type" name="payment_type"
+            value={formData.payment_type || ''} onChange={handleChange}>
             {paymentTypeOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
+              <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
             ))}
           </TextField>
 
@@ -414,45 +304,47 @@ function AddPatientPage() {
           <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>Medical Personnel</Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal" fullWidth
-                id="radiographer_name" label="Radiographer's Name" name="radiographer_name"
-                value={formData.radiographer_name || ''} 
-                onChange={handleChange}
-              />
+              <TextField margin="normal" fullWidth id="radiographer_name" label="Radiographer's Name" name="radiographer_name"
+                value={formData.radiographer_name || ''} onChange={handleChange} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                margin="normal" fullWidth
-                id="radiologist_name" label="Radiologist's Name" name="radiologist_name"
-                value={formData.radiologist_name || ''} 
-                onChange={handleChange}
-              />
+              <TextField margin="normal" fullWidth id="radiologist_name" label="Radiologist's Name" name="radiologist_name"
+                value={formData.radiologist_name || ''} onChange={handleChange} />
             </Grid>
           </Grid>
 
           {/* General Remarks */}
           <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>General Remarks</Typography>
-          <TextField
-            margin="normal" fullWidth
-            id="remarks" label="Additional Remarks" name="remarks"
-            multiline rows={4}
-            value={formData.remarks || ''} 
-            onChange={handleChange}
-          />
+          <TextField margin="normal" fullWidth id="remarks" label="Additional Remarks" name="remarks" multiline rows={4}
+            value={formData.remarks || ''} onChange={handleChange} />
 
           {/* Submit Button */}
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Add Patient Record'}
+          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
+            Add Patient Record
           </Button>
         </Box>
       </Paper>
+
+      {/* ✅ Smooth Snackbar Notification */}
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setOpenSnackbar(false)}
+        message="Patient record added successfully! Redirecting..."
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
+
+      {/* ✅ FULL SCREEN LOADING OVERLAY (Spinner) */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={loading}
+      >
+        <Stack alignItems="center" gap={2}>
+          <CircularProgress color="inherit" />
+          <Typography variant="h6">Processing Patient Record...</Typography>
+        </Stack>
+      </Backdrop>
+
     </Container>
   );
 }
