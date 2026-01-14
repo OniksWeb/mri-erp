@@ -1326,6 +1326,7 @@ function imageToBase64(filePath) {
   const ext = path.extname(filePath).substring(1); // "png" or "jpg"
   return `data:image/${ext};base64,${fileData.toString("base64")}`;
 }
+
 // ---------- Get Single Patient Details (Corrected) ----------
 app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'), async (req, res) => {
   try {
@@ -1394,14 +1395,14 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
       }));
     }
 
-    // ✅ Send the response exactly ONCE
-    res.json(patient);
+    // ✅ Send the response exactly ONCE here
+    return res.json(patient);
 
   } catch (err) {
     console.error("Error fetching patient details:", err);
     // Only send error response if headers haven't been sent yet
     if (!res.headersSent) {
-        res.status(500).json({ message: "Failed to fetch patient details" });
+        return res.status(500).json({ message: "Failed to fetch patient details" });
     }
   }
 });
