@@ -2,6 +2,7 @@
   "name": "web-frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": "./",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -26,7 +27,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env REACT_APP_API_URL=https://g2g-mri-erp-bfw57.ondigitalocean.app react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -47,5 +48,6 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+    
   }
 }

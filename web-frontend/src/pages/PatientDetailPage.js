@@ -111,7 +111,7 @@ function PatientDetailPage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5001/api/patients/${id}`, { // Fetch from backend API
+      const response = await fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients/${id}`, { // Fetch from backend API
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,7 +123,29 @@ function PatientDetailPage() {
       if (response.ok) {
         setPatient(data); // Set patient data
         // Initialize formData ensuring examinations is an array
-        setFormData({ ...data, examinations: data.examinations || [] });
+        setFormData({
+          patient_name: data.patient_name || '',
+          age: data.age ?? '',
+          gender: data.gender || '',
+          weight_kg: data.weight_kg || '',
+          contact_email: data.contact_email || '',
+          contact_phone_number: data.contact_phone_number || '',
+          radiographer_name: data.radiographer_name || '',
+          radiologist_name: data.radiologist_name || '',
+          referral_hospital: data.referral_hospital || '',
+          referring_doctor: data.referring_doctor || '',
+          recorded_by_staff_name: data.recorded_by_staff_name || '',
+          recorded_by_staff_email: data.recorded_by_staff_email || '',
+          remarks: data.remarks || '',
+          payment_type: data.payment_type || '',
+          examinations: (data.examinations || []).map(exam => ({
+            id: exam.id || Date.now(),
+            name: exam.name || '',
+            amount: exam.amount || 0,
+          })),
+        });
+
+      setPaymentStatusOption(data.payment_status || 'Not Paid'); // Set initial payment status
         setError(''); // Clear any previous errors
         setPaymentStatusOption(data.payment_status || 'Not Paid'); // Set initial dialog status
       } else {
@@ -187,7 +209,7 @@ function PatientDetailPage() {
     setError('');
     try {
       // Send updated form data to backend
-      const response = await fetch(`http://localhost:5001/api/patients/${id}`, {
+      const response = await fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients/${id}`, {
         method: 'PATCH', // Use PATCH for partial updates
         headers: {
           'Content-Type': 'application/json',
@@ -195,23 +217,49 @@ function PatientDetailPage() {
         },
         body: JSON.stringify({
             ...formData,
-            patient_age: parseInt(formData.patient_age), // Ensure age is integer (using patient_age from DB)
+            age: parseInt(formData.age), // Ensure age is integer (using patient_age from DB)
             weight_kg: parseFloat(formData.weight_kg), // Ensure weight is float
             // Ensure examination amounts are floats for backend, provide default 0 for new
-            examinations: (formData.examinations || []).map(exam => ({ ...exam, amount: parseFloat(exam.amount || 0) }))
+            examinations: (formData.examinations || []).map(exam => ({ name: exam.name, amount: parseFloat(exam.amount || 0) }))
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setPatient(data.patient); // Update patient state with returned data
-        setFormData({ ...data.patient, examinations: data.patient.examinations || [] }); // Also update form data with new patient object, ensure exams is array
-        setIsEditMode(false); // Exit edit mode
+        const updatedPatient = data.patient || data;
+
+        setPatient(updatedPatient);
+
+        setFormData({
+          patient_name: updatedPatient.patient_name || '',
+          gender: updatedPatient.gender || '',
+          age: updatedPatient.age || '',
+          weight_kg: updatedPatient.weight_kg || '',
+          contact_email: updatedPatient.contact_email || '',
+          contact_phone_number: updatedPatient.contact_phone_number || '',
+          radiographer_name: updatedPatient.radiographer_name || '',
+          radiologist_name: updatedPatient.radiologist_name || '',
+          remarks: updatedPatient.remarks || '',
+          referral_hospital: updatedPatient.referral_hospital || '',
+          referring_doctor: updatedPatient.referring_doctor || '',
+          payment_type: updatedPatient.payment_type || '',
+          recorded_by_staff_name: updatedPatient.recorded_by_staff_name || '',
+          recorded_by_staff_email: updatedPatient.recorded_by_staff_email || '',
+          examinations: (updatedPatient.examinations || []).map(exam => ({
+            id: exam.id || Date.now(),
+            name: exam.name || '',
+            amount: exam.amount || 0
+          })),
+        });
+
+
+        setIsEditMode(false);
         alert('Patient updated successfully!');
       } else {
         setError(data.message || 'Failed to update patient record.');
       }
+
     } catch (err) {
       console.error('Error saving patient edit:', err);
       setError('Network error or server unavailable. Please try again.');
@@ -234,7 +282,7 @@ function PatientDetailPage() {
     setIsDeleting(true);
     setError('');
     try {
-      const response = await fetch(`http://localhost:5001/api/patients/${id}`, {
+      const response = await fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -274,7 +322,7 @@ function PatientDetailPage() {
     setIsApprovingPayment(true);
     setError('');
     try {
-      const response = await fetch(`http://localhost:5001/api/patients/${id}/approve-payment`, {
+      const response = await fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients/${id}/approve-payment`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -430,8 +478,8 @@ function PatientDetailPage() {
                 <ListItem>
                   <ListItemIcon><AccessTimeIcon /></ListItemIcon>
                   <ListItemText primary="Age" secondary={isEditMode ? (
-                    <TextField fullWidth name="patient_age" value={formData.patient_age || ''} onChange={handleFormChange} size="small" type="number" inputProps={{ min: 0 }} />
-                  ) : patient.patient_age || 'N/A'} />
+                    <TextField fullWidth name="age" value={formData.age || ''} onChange={handleFormChange} size="small" type="number" inputProps={{ min: 0 }} />
+                  ) : patient.age || 'N/A'} />
                 </ListItem>
                 <Divider component="li" variant="inset" />
                 <ListItem>
@@ -500,8 +548,8 @@ function PatientDetailPage() {
                 <ListItem>
                   <ListItemIcon><LocalHospitalIcon /></ListItemIcon>
                   <ListItemText primary="Referring Doctor" secondary={isEditMode ? (
-                    <TextField fullWidth name="referred_by_doctor" value={formData.referred_by_doctor || ''} onChange={handleFormChange} size="small" />
-                  ) : patient.referred_by_doctor || 'N/A'} />
+                    <TextField fullWidth name="referring_doctor" value={formData.referring_doctor || ''} onChange={handleFormChange} size="small" />
+                  ) : patient.referring_doctor || 'N/A'} />
                 </ListItem>
                 <Divider component="li" variant="inset" />
                 <ListItem>
@@ -583,8 +631,11 @@ function PatientDetailPage() {
                           (patient.examinations && patient.examinations.length > 0) ? (
                               patient.examinations.map((exam) => (
                                   <TableRow key={exam.id}>
-                                      <TableCell>{exam.exam_name || 'N/A'}</TableCell>
-                                      <TableCell align="right">₦{parseFloat(exam.exam_amount || 0).toFixed(2)}</TableCell>
+                                      <TableCell>{exam.name || 'N/A'}</TableCell>
+                                      <TableCell align="right">
+                                        ₦{Number(exam.amount || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </TableCell>
+
                                   </TableRow>
                               ))
                           ) : (
@@ -610,8 +661,9 @@ function PatientDetailPage() {
           {/* Total Amount Display */}
           <Box sx={{ mt: 2, textAlign: 'right' }}>
               <Typography variant="h6">
-                  Total Amount: ₦{calculateTotalAmount().toFixed(2)}
+                Total Amount: ₦{Number(calculateTotalAmount()).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
+
           </Box>
 
           <Divider sx={{ my: 3 }} />

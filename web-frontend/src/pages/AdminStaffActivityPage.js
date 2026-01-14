@@ -43,7 +43,7 @@ function AdminStaffActivityPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:5001/api/admin/analytics/staff-activity', { // Using PORT 5001
+      const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/admin/analytics/staff-activity', { // Using PORT 5001
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

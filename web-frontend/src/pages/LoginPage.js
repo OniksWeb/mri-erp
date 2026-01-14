@@ -30,13 +30,12 @@ function LoginPage() {
     setLoading(true); // Set loading state
 
     try {
-      // src/pages/LoginPage.js
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/login`, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ username, password }),
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/login`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -156,7 +155,7 @@ function LoginPage() {
           >
             {loading ? 'Logging in...' : 'Login'}
           </Button>
-          <Link href="#" variant="body2" onClick={() => navigate('/register')}
+          <Link onClick={() => navigate('/register')}
               sx={{ color: 'rgba(255, 255, 255, 0.7)', '&:hover': { color: 'white' } }}>
               {"Don't have an account? "}
               <span style={{ textDecoration: 'underline', fontWeight: 'bold' }}>Register Medical Staff</span>

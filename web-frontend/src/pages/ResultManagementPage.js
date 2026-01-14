@@ -16,10 +16,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LocalPrintshopIcon from '@mui/icons-material/LocalPrintshop'; // Icon for 'Issue Result'
 import WarningIcon from '@mui/icons-material/Warning';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Import the icon
-
+import DeleteIcon from '@mui/icons-material/Delete'; // Import the icon
 import Layout from '../components/Layout'; // Assuming Layout wraps the page
 
-const API_BASE_URL = 'http://localhost:5001'; // Your backend URL
+const API_BASE_URL = 'https://g2g-mri-erp-bfw57.ondigitalocean.app'; // Your backend URL
 
 function ResultManagementPage() {
   const { id: patientId } = useParams(); // Get patientId from URL
@@ -41,6 +41,7 @@ function ResultManagementPage() {
   const [selectedResult, setSelectedResult] = useState(null); // Result object for the action
   const [newStatus, setNewStatus] = useState('');
   const [recipientName, setRecipientName] = useState('');
+  const [success, setSuccess] = useState("");
 
   const fetchPatientAndResults = useCallback(async () => {
     if (!token || !patientId) {
@@ -77,28 +78,51 @@ function ResultManagementPage() {
     fetchPatientAndResults();
   }, [fetchPatientAndResults]);
 
-  const handleDownloadResult = async (resultId, fileName) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/patients/results/${resultId}/download`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob', // Important for file downloads
-      });
+  const handleDownloadResult = async (fileId, fileName) => {
+  try {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/patients/results/${fileId}/download`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      // Create a blob URL and trigger download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName); // Use original filename
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      alert('File downloaded successfully!');
-    } catch (err) {
-      console.error('Error downloading result:', err);
-      alert(`Failed to download file: ${err.response?.data?.message || err.message}`);
+    const { downloadUrl } = response.data;
+
+    // Directly open the signed URL → browser will download it
+    window.open(downloadUrl, "_blank");
+  } catch (err) {
+    console.error("Error downloading result:", err);
+    alert(`Failed to download file: ${err.response?.data?.message || err.message}`);
+  }
+};
+
+const handleDeleteResult = async (resultId) => {
+  if (!window.confirm('Are you sure you want to delete this result?')) return;
+
+  try {
+    const response = await fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/results/${resultId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setSuccess('Result deleted successfully.');
+      // Refresh results list after deletion
+      fetchPatientAndResults(); 
+    } else {
+      setError(data.message || 'Failed to delete result.');
     }
-  };
+  } catch (err) {
+    console.error('Delete result error:', err);
+    setError('Network error or server unavailable.');
+  }
+};
+
+
 
   const handleOpenStatusDialog = (result) => {
     console.log("Result object when opening dialog:", result); // Keep this log for debugging
@@ -259,6 +283,16 @@ function ResultManagementPage() {
                             <DownloadIcon />
                           </IconButton>
                         </Tooltip>
+                          <Tooltip title="Delete File">
+                            <IconButton
+                              color="error"
+                              size="small"
+                              onClick={() => handleDeleteResult(result.file_id, result.file_name)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+
                         {result.file_mimetype && result.file_mimetype.includes('image') && (
                           <Tooltip title="View Image">
                             <IconButton
@@ -291,6 +325,7 @@ function ResultManagementPage() {
                               <LocalPrintshopIcon />
                             </IconButton>
                           </Tooltip>
+
                         )}
                       </Stack>
                     </TableCell>

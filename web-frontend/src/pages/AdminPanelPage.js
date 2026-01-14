@@ -43,6 +43,7 @@ function AdminPanelPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
 
   // State for confirmation dialog
   const [openDialog, setOpenDialog] = useState(false);
@@ -56,56 +57,63 @@ function AdminPanelPage() {
     { value: 'medical_staff', label: 'Medical Staff' },
     { value: 'doctor', label: 'Doctor' },
     { value: 'financial_admin', label: 'Financial Admin' },
+    { value: 'accounts', label: 'Accounts' }
     // Admin role should not be assignable from here for security
   ];
 
-  const fetchMedicalStaff = async () => {
-    if (!token) {
-      setError('Authentication token missing. Please log in.');
-      setLoading(false);
-      return;
+  const fetchStaffList = async () => {
+  if (!token) {
+    setError('Authentication token missing. Please log in.');
+    setLoading(false);
+    return;
+  }
+
+
+
+
+  // ✅ Allow Admins (and maybe others later if you want) to view
+  if (user?.role !== 'admin') {
+    setError('Access denied: Only administrators can view this page.');
+    setLoading(false);
+    return;
+  }
+
+  try {
+    // ✅ Fetch all non-admin staff
+    const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/staff-list', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setMedicalStaff(data); // 👈 rename setMedicalStaff → setStaff for clarity
+    } else {
+      setError(data.message || 'Failed to fetch staff records.');
     }
-    if (user?.role !== 'admin') { // This check is also in ProtectedRoute, but good for clarity
-      setError('Access denied: Only administrators can view this page.');
-      setLoading(false);
-      return;
-    }
+  } catch (err) {
+    console.error('Error fetching staff list:', err);
+    setError('Network error or server unavailable.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    try {
-      // Fetch all non-admin users for management
-      const response = await fetch('http://localhost:5001/api/admin/medical-staff', { // Using PORT 5001
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+useEffect(() => {
+  fetchStaffList();
+}, [token, user]); // Re-fetch if token or user changes
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMedicalStaff(data);
-      } else {
-        setError(data.message || 'Failed to fetch medical staff records.');
-      }
-    } catch (err) {
-      console.error('Error fetching medical staff:', err);
-      setError('Network error or server unavailable.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMedicalStaff();
-  }, [token, user]); // Re-fetch if token or user changes
 
   // --- Dialog Handlers ---
   const handleOpenDialog = (action, staff) => {
     setDialogAction(action);
     setSelectedStaff(staff);
     if (action === 'change_role') {
-        setNewRole(staff.role); // Set current role as default in dialog
+        setNewRole(staff.role || ''); // Set current role as default in dialog
     }
     setOpenDialog(true);
     setSuccess(''); // Clear previous success messages before dialog
@@ -120,6 +128,36 @@ function AdminPanelPage() {
     setError(''); // Clear any previous error on dialog close
     setSuccess('');
   };
+
+  const updatePermission = async (staffId, newValue) => {
+  try {
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/staff-list/${staffId}/permission`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ can_download: newValue }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to update permission");
+    }
+
+    // ✅ Update local state
+    setMedicalStaff((prev) =>
+      prev.map((s) =>
+        s.id === staffId ? { ...s, can_download: newValue } : s
+      )
+    );
+    setSuccess(`Download permission ${newValue ? "enabled" : "disabled"} for ${data.staff.username}`);
+  } catch (err) {
+    console.error("Error updating permission:", err);
+    alert(err.message);
+  }
+};
 
   const handleConfirmAction = async () => {
     if (!selectedStaff || !dialogAction) return;
@@ -137,16 +175,16 @@ function AdminPanelPage() {
 
       if (dialogAction === 'verify' || dialogAction === 'suspend' || dialogAction === 'activate') {
         const isVerifiedStatus = dialogAction === 'verify' || dialogAction === 'activate';
-        url = `http://localhost:5001/api/admin/verify-medical-staff/${selectedStaff.id}`;
+        url = `https://g2g-mri-erp-bfw57.ondigitalocean.app/api/admin/verify-medical-staff/${selectedStaff.id}`;
         method = 'PATCH';
         body = { suspend: !isVerifiedStatus };
         message = `User ${selectedStaff.username} successfully ${isVerifiedStatus ? 'activated' : 'suspended'}.`;
       } else if (dialogAction === 'delete') {
-        url = `http://localhost:5001/api/admin/medical-staff/${selectedStaff.id}`;
+        url = `https://g2g-mri-erp-bfw57.ondigitalocean.app/api/admin/medical-staff/${selectedStaff.id}`;
         method = 'DELETE';
         message = `User ${selectedStaff.username} deleted.`;
       } else if (dialogAction === 'change_role') {
-        url = `http://localhost:5001/api/admin/medical-staff/${selectedStaff.id}/role`; // NEW ENDPOINT
+        url = `https://g2g-mri-erp-bfw57.ondigitalocean.app/api/admin/medical-staff/${selectedStaff.id}/role`; // NEW ENDPOINT
         method = 'PATCH';
         body = { role: newRole };
         message = `User ${selectedStaff.username} role changed to ${newRole.replace('_', ' ')}.`;
@@ -167,7 +205,7 @@ function AdminPanelPage() {
 
       if (response.ok) {
         setSuccess(message);
-        fetchMedicalStaff(); // Refresh the list
+        fetchStaffList(); // Refresh the list
       } else {
         setError(data.message || `Action failed for ${selectedStaff.username}.`);
       }
@@ -211,103 +249,112 @@ function AdminPanelPage() {
       )}
 
       {medicalStaff.length === 0 ? (
-        <Alert severity="info">No medical staff accounts found (other than admins).</Alert>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="medical staff table">
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Username</TableCell>
-                <TableCell>Full Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Role</TableCell> {/* NEW: Role column */}
-                <TableCell>Status</TableCell>
-                <TableCell>Registered On</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {medicalStaff.map((staff) => (
-                <TableRow
-                  key={staff.id}
-                  sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                >
-                  <TableCell component="th" scope="row">
-                    {staff.id}
-                  </TableCell>
-                  <TableCell>{staff.username}</TableCell>
-                  <TableCell>{staff.full_name}</TableCell>
-                  <TableCell>{staff.email}</TableCell>
-                  <TableCell>{staff.role.replace('_', ' ').toUpperCase()}</TableCell> {/* NEW: Role display */}
-                  <TableCell>
-                    {staff.is_verified ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-                        <CheckCircleOutlineIcon fontSize="small" sx={{ mr: 0.5 }} /> Verified
-                      </Box>
-                    ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'warning.main' }}>
-                        <BlockIcon fontSize="small" sx={{ mr: 0.5 }} /> Unverified / Suspended
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell>{new Date(staff.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell align="right">
-                    {staff.id !== user?.id && staff.role !== 'admin' ? ( // Prevent admin from managing self or other admins
-                      <>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          sx={{ mr: 1 }}
-                          onClick={() => handleOpenDialog('change_role', staff)} // NEW: Change Role button
-                        >
-                          Change Role
-                        </Button>
-                        {staff.is_verified ? (
-                          <Button
-                            variant="outlined"
-                            color="warning"
-                            startIcon={<BlockIcon />}
-                            size="small"
-                            sx={{ mr: 1 }}
-                            onClick={() => handleOpenDialog('suspend', staff)}
-                          >
-                            Suspend
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outlined"
-                            color="success"
-                            startIcon={<CheckCircleOutlineIcon />}
-                            size="small"
-                            sx={{ mr: 1 }}
-                            onClick={() => handleOpenDialog('activate', staff)}
-                          >
-                            Activate
-                          </Button>
-                        )}
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          startIcon={<DeleteIcon />}
-                          size="small"
-                          onClick={() => handleOpenDialog('delete', staff)}
-                        >
-                          Delete
-                        </Button>
-                      </>
-                    ) : (
-                      <Typography variant="caption" color="text.secondary">
-                        (Cannot manage self)
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+  <Alert severity="info">No staff accounts found (other than admins).</Alert>
+) : (
+  <TableContainer component={Paper}>
+    <Table sx={{ minWidth: 650 }} aria-label="staff table">
+      <TableHead>
+        <TableRow>
+          <TableCell>ID</TableCell>
+          <TableCell>Username</TableCell>
+          <TableCell>Full Name</TableCell>
+          <TableCell>Email</TableCell>
+          <TableCell>Role</TableCell>
+          <TableCell>Status</TableCell>
+          <TableCell>Registered On</TableCell>
+          <TableCell align="right">Actions</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {medicalStaff.map((staff) => (
+          <TableRow key={staff.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+            <TableCell component="th" scope="row">{staff.id}</TableCell>
+            <TableCell>{staff.username}</TableCell>
+            <TableCell>{staff.full_name}</TableCell>
+            <TableCell>{staff.email}</TableCell>
+            <TableCell>
+              {staff.role.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+            </TableCell>
+            <TableCell>
+              {staff.is_verified ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
+                  <CheckCircleOutlineIcon fontSize="small" sx={{ mr: 0.5 }} /> Verified
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', color: 'warning.main' }}>
+                  <BlockIcon fontSize="small" sx={{ mr: 0.5 }} /> Unverified / Suspended
+                </Box>
+              )}
+            </TableCell>
+            <TableCell>{new Date(staff.created_at).toLocaleDateString()}</TableCell>
+            <TableCell align="right">
+              {staff.id !== user?.id && staff.role !== 'admin' ? (
+                <>
+                  {/* ✅ Enable/Disable Download */}
+                  <Button
+                    variant="contained"
+                    size="small"
+                    sx={{ mr: 1 }}
+                    color={staff.can_download ? "success" : "error"}
+                    onClick={() => updatePermission(staff.id, !staff.can_download)}
+                  >
+                    {staff.can_download ? "Disable Download" : "Enable Download"}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    sx={{ mr: 1 }}
+                    onClick={() => handleOpenDialog('change_role', staff)}
+                  >
+                    Change Role
+                  </Button>
+                  {staff.is_verified ? (
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      startIcon={<BlockIcon />}
+                      size="small"
+                      sx={{ mr: 1 }}
+                      onClick={() => handleOpenDialog('suspend', staff)}
+                    >
+                      Suspend
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={<CheckCircleOutlineIcon />}
+                      size="small"
+                      sx={{ mr: 1 }}
+                      onClick={() => handleOpenDialog('activate', staff)}
+                    >
+                      Activate
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    size="small"
+                    onClick={() => handleOpenDialog('delete', staff)}
+                  >
+                    Delete
+                  </Button>
+                </>
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  (Cannot manage self)
+                </Typography>
+              )}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+)}
+
 
       {/* Confirmation Dialog */}
       <Dialog
@@ -347,11 +394,14 @@ function AdminPanelPage() {
                     </FormControl>
                 </Box>
             ) : (
-                `Are you sure you want to ${dialogAction} user: ` +
-                <Typography component="span" sx={{ fontWeight: 'bold', mx: 0.5 }}>
-                  {selectedStaff?.full_name || selectedStaff?.username}?
-                </Typography> +
-                (dialogAction === 'delete' ? ' This action cannot be undone.' : '')
+                            <>
+                              Are you sure you want to {dialogAction} user:
+                              <Typography component="span" sx={{ fontWeight: 'bold', mx: 0.5 }}>
+                                {selectedStaff?.full_name || selectedStaff?.username}
+                              </Typography>
+                              {dialogAction === 'delete' && 'This action cannot be undone.'}
+                            </>
+
             )}
           </DialogContentText>
         </DialogContent>

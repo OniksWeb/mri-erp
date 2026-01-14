@@ -115,11 +115,11 @@ function UserProfilePage() {
           </Grid>
         </Grid>
 
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+        {/* <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
           <Typography variant="body2" color="text.secondary">
             (Edit profile options will be added here.)
           </Typography>
-        </Box>
+        </Box> */}
       </Paper>
     </Container>
   );

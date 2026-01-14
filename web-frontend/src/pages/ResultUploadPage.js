@@ -48,7 +48,7 @@ function ResultsUploadPage() {
       }
       try {
         setLoading(true); // Set loading for patient list fetch
-        const response = await axios.get('http://localhost:5001/api/patients', {
+        const response = await axios.get('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setPatients(response.data);
@@ -117,10 +117,10 @@ function ResultsUploadPage() {
 
     try {
       console.log(`Attempting to upload for patient ID: ${selectedPatientId}`);
-      console.log(`Target URL: http://localhost:5001/api/patients/${selectedPatientId}/results/upload`);
+      console.log(`Target URL: https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients/${selectedPatientId}/results/upload`);
 
       const response = await axios.post(
-        `http://localhost:5001/api/patients/${selectedPatientId}/results/upload`, // Use selectedPatientId in URL
+        `https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients/${selectedPatientId}/results/upload`, // Use selectedPatientId in URL
         formData,
         {
           headers: {

@@ -44,7 +44,7 @@ function SubmitQueryPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:5001/api/queries', { // Using PORT 5001
+      const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/queries', { // Using PORT 5001
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

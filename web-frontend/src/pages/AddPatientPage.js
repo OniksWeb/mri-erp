@@ -1,5 +1,5 @@
 // web-frontend/src/pages/AddPatientPage.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -70,35 +70,44 @@ function AddPatientPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleExaminationChange = (id, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      examinations: prev.examinations.map((exam) =>
-        exam.id === id ? { ...exam, [field]: value } : exam
-      ),
-    }));
-  };
+const handleExaminationChange = (id, field, value) => {
+  setFormData(prev => {
+    const updatedExams = prev.examinations.map(exam =>
+      exam.id === id
+        ? { ...exam, [field]: value } // update the right exam
+        : exam
+    );
+    return { ...prev, examinations: updatedExams }; // return new object
+  });
+};
+
 
   const handleAddExamination = () => {
-    setFormData((prev) => ({
-      ...prev,
-      examinations: [...prev.examinations, { id: Date.now(), name: '', amount: '' }], // Add new exam with unique client-side ID
-    }));
-  };
+  setFormData(prev => ({
+    ...prev,
+    examinations: [
+      ...prev.examinations,
+      { id: Date.now(), name: '', amount: '' } // new exam with temp id
+    ]
+  }));
+};
+
 
   const handleRemoveExamination = (id) => {
-    setFormData((prev) => ({
-      ...prev,
-      examinations: prev.examinations.filter((exam) => exam.id !== id),
-    }));
-  };
+  setFormData(prev => ({
+    ...prev,
+    examinations: prev.examinations.filter(exam => exam.id !== id)
+  }));
+};
 
-  const calculateTotalAmount = () => {
-    return formData.examinations.reduce((sum, exam) => {
-      const amount = parseFloat(exam.amount);
-      return sum + (isNaN(amount) ? 0 : amount);
-    }, 0);
-  };
+
+const totalAmount = useMemo(() => {
+  return (formData.examinations || []).reduce((sum, exam) => {
+    const amount = parseFloat(exam.amount);
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+}, [formData.examinations]);
+
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -154,7 +163,7 @@ function AddPatientPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:5001/api/patients', {
+      const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -336,8 +345,10 @@ function AddPatientPage() {
           {/* Total Amount Display */}
           <Box sx={{ mt: 2, textAlign: 'right' }}>
               <Typography variant="h6">
-                  Total Amount: ₦{calculateTotalAmount().toFixed(2)} {/* Currency here */}
+                Total Amount: ₦{Number(totalAmount).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
+
+
           </Box>
 
           <Divider sx={{ my: 4 }} />

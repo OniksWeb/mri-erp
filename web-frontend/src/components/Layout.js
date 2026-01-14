@@ -99,7 +99,7 @@ function Layout({ children }) {
     }
 
     try {
-      const unreadResponse = await fetch('process.env.REACT_APP_API_URL/notifications/my?readStatus=unread', {
+      const unreadResponse = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/notifications/my?readStatus=unread', {
         headers: {
           'Authorization': `Bearer ${currentToken}`,
         },
@@ -112,7 +112,7 @@ function Layout({ children }) {
         setUnreadCount(0);
       }
 
-      const allResponse = await fetch('process.env.REACT_APP_API_URL/notifications/my', {
+      const allResponse = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/notifications/my', {
         headers: {
           'Authorization': `Bearer ${currentToken}`,
         },
@@ -218,7 +218,7 @@ function Layout({ children }) {
     handleCloseNotificationsMenu();
 
     try {
-      const response = await fetch(`process.env.REACT_APP_API_URL/notifications/${notificationId}/read`, {
+      const response = await fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/notifications/${notificationId}/read`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -254,7 +254,7 @@ function Layout({ children }) {
     if (unreadCount === 0) return;
 
     try {
-      const response = await fetch('process.env.REACT_APP_API_URL/notifications/mark-all-read', {
+      const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/notifications/mark-all-read', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -360,7 +360,7 @@ function Layout({ children }) {
 
           {/* Login/Logout Button */}
           {user ? (
-            <Button color="inherit" onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }}>
+            <Button color="inherit" onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}>
               Logout
             </Button>
           ) : (

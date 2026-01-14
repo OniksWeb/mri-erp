@@ -14,7 +14,7 @@ function ResultsDashboardPage() {
     const [summaryData, setSummaryData] = useState(null); // To store overview data
     const [recentResults, setRecentResults] = useState([]); // To store a list of recent results
 
-    const API_BASE_URL = 'http://localhost:5001'; // Your backend URL
+    const API_BASE_URL = 'https://g2g-mri-erp-bfw57.ondigitalocean.app'; // Your backend URL
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -90,12 +90,12 @@ function ResultsDashboardPage() {
                                 <Typography variant="h4">{summaryData?.total_results || 0}</Typography>
                             </Paper>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        {/* <Grid item xs={12} sm={4}>
                             <Paper elevation={3} sx={{ p: 2, textAlign: 'center' }}>
                                 <Typography variant="h5" color="text.secondary">Pending Review</Typography>
                                 <Typography variant="h4">{summaryData?.pending_results || 0}</Typography>
                             </Paper>
-                        </Grid>
+                        </Grid> */}
                         <Grid item xs={12} sm={4}>
                             <Paper elevation={3} sx={{ p: 2, textAlign: 'center' }}>
                                 <Typography variant="h5" color="success.main">Issued Results</Typography>

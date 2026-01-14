@@ -1,6 +1,6 @@
 // web-frontend/src/App.js
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react'; // ✅ Added useEffect
+import { Routes, Route, useLocation } from 'react-router-dom'; // ✅ Added useLocation
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -11,24 +11,42 @@ import PatientListPage from './pages/PatientListPage';
 import AddPatientPage from './pages/AddPatientPage';
 import AdminPanelPage from './pages/AdminPanelPage';
 import UserProfilePage from './pages/UserProfilePage';
-import SubmitQueryPage from './pages/SubmitQueryPage'; // Corrected to SubmitQueryPage
+import SubmitQueryPage from './pages/SubmitQueryPage';
 import MyQueriesPage from './pages/MyQueriesPage';
 import AdminQueriesPage from './pages/AdminQueriesPage';
-import ChatPage from './pages/ChatPage'; // Chat page (currently disabled in SideNav but code is here)
-import PatientDetailPage from './pages/PatientDetailPage'; // Patient Detail, Edit, Delete
-import ResultUploadPage from './pages/ResultUploadPage'; // NEW: Result Upload page
-import ResultManagementPage from './pages/ResultManagementPage'; // NEW: Result Management/Issue page
-import AdminStaffActivityPage from './pages/AdminStaffActivityPage'; // Admin Staff Activity Analytics
-import ResultsUploadPage from './pages/ResultUploadPage';
+import ChatPage from './pages/ChatPage';
+import PatientDetailPage from './pages/PatientDetailPage';
+import ResultUploadPage from './pages/ResultUploadPage';
+import ResultManagementPage from './pages/ResultManagementPage';
+import AdminStaffActivityPage from './pages/AdminStaffActivityPage';
 import ResultsDashboardPage from './pages/ResultsDashboardPage';
 
-
 // Components
-import ProtectedRoute from './components/ProtectedRoute'; // Our ProtectedRoute component
+import ProtectedRoute from './components/ProtectedRoute';
+
+// ✅ NEW COMPONENT: Tracks route changes and saves to LocalStorage
+const RouteTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    // We do NOT want to save the login or register pages as the "last visited"
+    const publicPaths = ['/login', '/register', '/'];
+    
+    if (!publicPaths.includes(location.pathname)) {
+      localStorage.setItem('last_visited_route', location.pathname);
+      console.log('📍 Progress Saved:', location.pathname);
+    }
+  }, [location]);
+
+  return null; // This component doesn't render anything visible
+};
 
 function App() {
   return (
     <div className="App">
+      {/* ✅ Insert the Tracker here so it monitors all Route changes */}
+      <RouteTracker /> 
+
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
@@ -71,7 +89,7 @@ function App() {
         <Route
           path="/patients/:id/results/manage" // NEW: Manage Results (list, status, issue)
           element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor']}> {/* Added doctor role for result management */}
+            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor']}> 
               <ResultManagementPage />
             </ProtectedRoute>
           }
@@ -79,13 +97,13 @@ function App() {
         <Route
           path="/results/upload" // NEW: Result Upload page
           element={
-            <ProtectedRoute requiredRoles={['admin', 'doctor']}> {/* Admin & Doctor upload results */}
+            <ProtectedRoute requiredRoles={['admin', 'doctor']}> 
               <ResultUploadPage />
             </ProtectedRoute>
           }
         />
        <Route
-          path="/results/dashboard" // This is the path your SideNav button points to
+          path="/results/dashboard" 
           element={
             <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
               <ResultsDashboardPage />

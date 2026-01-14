@@ -62,7 +62,7 @@ function RegisterPage() {
 
     try {
       // Make API call to your backend register endpoint
-      const response = await fetch('process.env.REACT_APP_API_URL/register', { // Using PORT 5001
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/register`, { // Using PORT 5001
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -214,7 +214,7 @@ function RegisterPage() {
           >
             {loading ? <CircularProgress size={24} /> : 'Register'}
           </Button>
-          <Link href="#" variant="body2" onClick={() => navigate('/login')}>
+          <Link onClick={() => navigate('/login')}>
             {"Already have an account? Sign In"}
           </Link>
         </Box>

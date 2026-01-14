@@ -56,7 +56,7 @@ function ChatPage() {
         return;
       }
       try {
-        const response = await fetch('http://localhost:5001/api/chat/history', { // Using PORT 5001
+        const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/chat/history', { // Using PORT 5001
           headers: {
             'Authorization': `Bearer ${token}`,
           },

@@ -182,12 +182,12 @@ function DashboardPage() {
         eventsRes,
         patientsRes
       ] = await Promise.all([
-        fetch('process.env.REACT_APP_API_URL/analytics/total-patients', { headers }),
-        fetch('process.env.REACT_APP_API_URL/analytics/patients-by-gender', { headers }),
-        fetch('process.env.REACT_APP_API_URL/analytics/mris-by-day', { headers }),
-        fetch('process.env.REACT_APP_API_URL/analytics/recent-patients', { headers }),
-        fetch(`process.env.REACT_APP_API_URL/events/my?start=${startRange}&end=${endRange}`, { headers }),
-        fetch('process.env.REACT_APP_API_URL/patients', { headers }),
+        fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/analytics/total-patients', { headers }),
+        fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/analytics/patients-by-gender', { headers }),
+        fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/analytics/mris-by-day', { headers }),
+        fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/analytics/recent-patients', { headers }),
+        fetch(`https://g2g-mri-erp-bfw57.ondigitalocean.app/api/events/my?start=${startRange}&end=${endRange}`, { headers }),
+        fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients', { headers }),
       ]);
 
       const [
@@ -256,11 +256,11 @@ function DashboardPage() {
     try {
       const method = selectedEvent ? 'PUT' : 'POST';
       const url = selectedEvent
-        ? `http://localhost:5001/api/events/${selectedEvent.id}`
-        : 'http://localhost:5001/api/events';
+        ? `https://g2g-mri-erp-bfw57.ondigitalocean.app/api/events/${selectedEvent.id}`
+        : 'https://g2g-mri-erp-bfw57.ondigitalocean.app/api/events';
 
-      const response = await fetch(url, {
-        method,
+      const response = await fetch("https://g2g-mri-erp-bfw57.ondigitalocean.app/api/dashboard", {
+      method: "POST",
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -303,7 +303,7 @@ function DashboardPage() {
           return;
       }
 
-      const response = await fetch(`http://localhost:5001/api/events/${selectedEvent.id}`, {
+      const response = await fetch(`http://https://g2g-mri-erp-bfw57.ondigitalocean.app/api/events/${selectedEvent.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -570,7 +570,7 @@ const EventWrapper = ({ event, children }) => {
                   <Alert severity="error">{eventError}</Alert>
                 ) : (
                   <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <Box sx={{ height: '50vh', width: '5vh' }}> {/* Responsive height */}
+                    <Box sx={{ height: '50vh', width: '50vh' }}> {/* Responsive height */}
                       <Calendar
                         localizer={localizer}
                         events={events}

@@ -35,7 +35,7 @@ function MyQueriesPage() {
         return;
       }
       try {
-        const response = await fetch('process.env.REACT_APP_API_URL/queries/my', { // Using PORT 5001
+        const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/queries/my', { // Using PORT 5001
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
