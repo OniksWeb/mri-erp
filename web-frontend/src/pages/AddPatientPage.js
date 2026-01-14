@@ -1,5 +1,5 @@
 // web-frontend/src/pages/AddPatientPage.js
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,25 +14,22 @@ import {
   CircularProgress,
   MenuItem,
   Paper,
-  IconButton, // For adding/removing examination fields
-  Divider,    // For section separators
-  Grid,       // For better form layout
-  InputAdornment, // For currency symbol in TextField
-  FormControl, // For Select label
-  InputLabel, // For Select label
-  Select, // For Select dropdown
-  Tooltip // For tooltips on icons
+  IconButton,
+  Divider,
+  Grid,
+  InputAdornment,
+  Stack
 } from '@mui/material';
-import SendIcon from '@mui/icons-material/Send'; // Make sure this is imported if used directly
-import AddIcon from '@mui/icons-material/Add'; // NEW: Icon for add examination button
-import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline'; // NEW: Icon for remove examination button
-import { Stack} from '@mui/material'; // Import Stack and IconButton
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Import the icon
+import AddIcon from '@mui/icons-material/Add';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 function AddPatientPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
-  const [formData, setFormData] = useState({
+  
+  // Initial Empty State
+  const initialFormState = {
     patient_name: '',
     gender: '',
     contact_email: '',
@@ -40,16 +37,43 @@ function AddPatientPage() {
     radiographer_name: '',
     radiologist_name: '',
     remarks: '',
-    age: '', // New field
-    weight_kg: '', // New field
-    referral_hospital: '', // New field
-    referring_doctor: '', // New field
-    payment_type: '', // Default to empty
-    examinations: [{ id: Date.now(), name: '', amount: '' }], // Initial examination field
-  });
+    age: '',
+    weight_kg: '',
+    referral_hospital: '',
+    referring_doctor: '',
+    payment_type: '',
+    examinations: [{ id: Date.now(), name: '', amount: '' }],
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // ✅ 1. LOAD DRAFT (Robuster Version)
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('patient_form_draft');
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft);
+        // MERGE with initial state to ensure no fields are undefined (prevents input locking)
+        setFormData({ ...initialFormState, ...parsedDraft });
+        console.log("📝 Restored draft from storage");
+      } catch (err) {
+        console.error("Error parsing draft:", err);
+        localStorage.removeItem('patient_form_draft');
+      }
+    }
+  }, []);
+
+  // ✅ 2. SAVE DRAFT
+  useEffect(() => {
+    const hasData = formData.patient_name || formData.contact_email || formData.age || (formData.examinations[0] && formData.examinations[0].name);
+    
+    if (hasData) {
+      localStorage.setItem('patient_form_draft', JSON.stringify(formData));
+    }
+  }, [formData]);
 
   const paymentTypeOptions = [
     { value: '', label: 'Select Payment Type' },
@@ -70,46 +94,42 @@ function AddPatientPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-const handleExaminationChange = (id, field, value) => {
-  setFormData(prev => {
-    const updatedExams = prev.examinations.map(exam =>
-      exam.id === id
-        ? { ...exam, [field]: value } // update the right exam
-        : exam
-    );
-    return { ...prev, examinations: updatedExams }; // return new object
-  });
-};
-
+  const handleExaminationChange = (id, field, value) => {
+    setFormData(prev => {
+      const updatedExams = prev.examinations.map(exam =>
+        exam.id === id
+          ? { ...exam, [field]: value }
+          : exam
+      );
+      return { ...prev, examinations: updatedExams };
+    });
+  };
 
   const handleAddExamination = () => {
-  setFormData(prev => ({
-    ...prev,
-    examinations: [
-      ...prev.examinations,
-      { id: Date.now(), name: '', amount: '' } // new exam with temp id
-    ]
-  }));
-};
-
+    setFormData(prev => ({
+      ...prev,
+      examinations: [
+        ...prev.examinations,
+        { id: Date.now(), name: '', amount: '' }
+      ]
+    }));
+  };
 
   const handleRemoveExamination = (id) => {
-  setFormData(prev => ({
-    ...prev,
-    examinations: prev.examinations.filter(exam => exam.id !== id)
-  }));
-};
+    setFormData(prev => ({
+      ...prev,
+      examinations: prev.examinations.filter(exam => exam.id !== id)
+    }));
+  };
 
+  const totalAmount = useMemo(() => {
+    return (formData.examinations || []).reduce((sum, exam) => {
+      const amount = parseFloat(exam.amount);
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+  }, [formData.examinations]);
 
-const totalAmount = useMemo(() => {
-  return (formData.examinations || []).reduce((sum, exam) => {
-    const amount = parseFloat(exam.amount);
-    return sum + (isNaN(amount) ? 0 : amount);
-  }, 0);
-}, [formData.examinations]);
-
-
-const handleSubmit = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
@@ -118,18 +138,18 @@ const handleSubmit = async (event) => {
     // --- Frontend Validation ---
     const { patient_name, contact_email, examinations, age, weight_kg, payment_type } = formData;
     
-    if (!patient_name.trim()) {
+    if (!patient_name?.trim()) {
       setError('Patient Name is required.');
       setLoading(false);
       return;
     }
-    if (!contact_email.trim() || !contact_email.includes('@')) {
+    if (!contact_email?.trim() || !contact_email.includes('@')) {
         setError('A valid Email Address is required.');
         setLoading(false);
         return;
     }
-    if (!age || isNaN(age) || age <= 0 || !Number.isInteger(Number(age))) {
-        setError('Age must be a positive whole number.');
+    if (!age || isNaN(age) || age <= 0) {
+        setError('Age must be a positive number.');
         setLoading(false);
         return;
     }
@@ -149,7 +169,7 @@ const handleSubmit = async (event) => {
       return;
     }
     for (const exam of examinations) {
-      if (!exam.name.trim() || !exam.amount || isNaN(exam.amount) || parseFloat(exam.amount) <= 0) {
+      if (!exam.name?.trim() || !exam.amount || isNaN(exam.amount) || parseFloat(exam.amount) <= 0) {
         setError('All examination names and positive amounts are required.');
         setLoading(false);
         return;
@@ -164,9 +184,8 @@ const handleSubmit = async (event) => {
     }
 
     try {
-      // 1. Setup a timeout for the network request (prevents infinite hanging)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
       const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients', {
         method: 'POST',
@@ -175,10 +194,10 @@ const handleSubmit = async (event) => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(formData),
-        signal: controller.signal // Connect the timeout
+        signal: controller.signal
       });
 
-      clearTimeout(timeoutId); // Clear timeout if response comes back in time
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -186,19 +205,15 @@ const handleSubmit = async (event) => {
         setSuccess(true);
         setError('');
         
-        // 2. Alert blocks user input. Once they click OK, we navigate IMMEDIATELY.
-        // No 2-second delay means no "frozen" feeling.
         alert(data.message || 'Patient record added successfully!');
         
-        setFormData({ 
-          patient_name: '', gender: '', contact_email: '', contact_phone_number: '',
-          radiographer_name: '', radiologist_name: '', remarks: '',
-          age: '', weight_kg: '', referral_hospital: '', referring_doctor: '',
-          payment_type: '',
-          examinations: [{ id: Date.now(), name: '', amount: '' }],
-        });
+        // ✅ CLEAR DRAFT immediately after success
+        localStorage.removeItem('patient_form_draft');
 
-        navigate('/patients'); // Redirect immediately
+        // Reset form
+        setFormData(initialFormState);
+
+        navigate('/patients');
       } else {
         setError(data.message || 'Failed to add patient record.');
       }
@@ -210,18 +225,17 @@ const handleSubmit = async (event) => {
         setError('Network error or server unavailable. Please try again.');
       }
     } finally {
-      // 3. Safety Valve: This ensures the loading spinner ALWAYS stops
       setLoading(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="md" sx={{ p: 3 }}> {/* Page-level padding */}
+    <Container component="main" maxWidth="md" sx={{ p: 3 }}>
       <Paper elevation={3} sx={{ p: 4, mt: 4, borderRadius: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{mb: 2}}>
-                    <IconButton onClick={() => navigate(-1)}> {/* Go back to previous page */}
-                        <ArrowBackIcon />
-                    </IconButton>
+            <IconButton onClick={() => navigate(-1)}>
+                <ArrowBackIcon />
+            </IconButton>
           <Typography variant="h4" gutterBottom component="h1" sx={{ mb: 3 }}>
             Add New Patient Record
           </Typography>
@@ -234,28 +248,31 @@ const handleSubmit = async (event) => {
         )}
         {success && (
           <Alert severity="success" sx={{ width: '100%', mb: 2 }}>
-            Patient record added successfully! Redirecting to Patient List...
+            Patient record added successfully! Redirecting...
           </Alert>
         )}
 
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
           {/* Patient Demographics */}
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Patient Demographics</Typography>
-          <Grid container spacing={2}> {/* Use Grid for responsive layout */}
+          <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
+              {/* ✅ FIXED: Added || '' to all inputs to prevent freezing */}
               <TextField
                 margin="normal" required fullWidth
                 id="patient_name" label="Patient Name" name="patient_name"
-                value={formData.patient_name} onChange={handleChange}
+                value={formData.patient_name || ''} 
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 margin="normal" fullWidth select
                 id="gender" label="Gender" name="gender"
-                value={formData.gender} onChange={handleChange}
-                size="medium" // Ensure this is medium
-                sx={{ minWidth: 150 }} // Ensure this is here
+                value={formData.gender || ''} 
+                onChange={handleChange}
+                size="medium"
+                sx={{ minWidth: 150 }}
               >
                 {genderOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
@@ -268,14 +285,16 @@ const handleSubmit = async (event) => {
               <TextField
                 margin="normal" required fullWidth
                 id="age" label="Age" name="age" type="number"
-                value={formData.age} onChange={handleChange} inputProps={{ min: 0 }}
+                value={formData.age || ''} 
+                onChange={handleChange} inputProps={{ min: 0 }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 margin="normal" required fullWidth
                 id="weight_kg" label="Weight (kg)" name="weight_kg" type="number"
-                value={formData.weight_kg} onChange={handleChange} inputProps={{ step: "0.1", min: 0 }}
+                value={formData.weight_kg || ''} 
+                onChange={handleChange} inputProps={{ step: "0.1", min: 0 }}
               />
             </Grid>
           </Grid>
@@ -287,14 +306,16 @@ const handleSubmit = async (event) => {
               <TextField
                 margin="normal" required fullWidth
                 id="contact_email" label="Contact Email" name="contact_email" type="email"
-                value={formData.contact_email} onChange={handleChange}
+                value={formData.contact_email || ''} 
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 margin="normal" fullWidth
                 id="contact_phone_number" label="Contact Phone Number" name="contact_phone_number" type="tel"
-                value={formData.contact_phone_number} onChange={handleChange}
+                value={formData.contact_phone_number || ''} 
+                onChange={handleChange}
               />
             </Grid>
           </Grid>
@@ -306,28 +327,30 @@ const handleSubmit = async (event) => {
               <TextField
                 margin="normal" fullWidth
                 id="referral_hospital" label="Referral Hospital" name="referral_hospital"
-                value={formData.referral_hospital} onChange={handleChange}
+                value={formData.referral_hospital || ''} 
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 margin="normal" fullWidth
                 id="referring_doctor" label="Referring Doctor" name="referring_doctor"
-                value={formData.referring_doctor} onChange={handleChange}
+                value={formData.referring_doctor || ''} 
+                onChange={handleChange}
               />
             </Grid>
           </Grid>
 
           <Divider sx={{ my: 4 }} />
 
-          {/* Examination Details (Dynamic List) */}
+          {/* Examination Details */}
           <Typography variant="h6" gutterBottom>Examination Details</Typography>
           {formData.examinations.map((exam, index) => (
             <Box key={exam.id} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <TextField
                 sx={{ mr: 2, flex: 3 }}
                 label={`Examination ${index + 1} Name`}
-                value={exam.name}
+                value={exam.name || ''} 
                 onChange={(e) => handleExaminationChange(exam.id, 'name', e.target.value)}
                 required
               />
@@ -336,7 +359,7 @@ const handleSubmit = async (event) => {
                 label="Amount"
                 type="number"
                 inputProps={{ step: "0.01", min: "0" }}
-                value={exam.amount}
+                value={exam.amount || ''} 
                 onChange={(e) => handleExaminationChange(exam.id, 'amount', e.target.value)}
                 required
                 InputProps={{ startAdornment: <InputAdornment position="start">₦</InputAdornment> }}
@@ -363,8 +386,6 @@ const handleSubmit = async (event) => {
               <Typography variant="h6">
                 Total Amount: ₦{Number(totalAmount).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
-
-
           </Box>
 
           <Divider sx={{ my: 4 }} />
@@ -379,7 +400,7 @@ const handleSubmit = async (event) => {
             id="payment_type"
             label="Payment Type"
             name="payment_type"
-            value={formData.payment_type}
+            value={formData.payment_type || ''} 
             onChange={handleChange}
           >
             {paymentTypeOptions.map((option) => (
@@ -396,14 +417,16 @@ const handleSubmit = async (event) => {
               <TextField
                 margin="normal" fullWidth
                 id="radiographer_name" label="Radiographer's Name" name="radiographer_name"
-                value={formData.radiographer_name} onChange={handleChange}
+                value={formData.radiographer_name || ''} 
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 margin="normal" fullWidth
                 id="radiologist_name" label="Radiologist's Name" name="radiologist_name"
-                value={formData.radiologist_name} onChange={handleChange}
+                value={formData.radiologist_name || ''} 
+                onChange={handleChange}
               />
             </Grid>
           </Grid>
@@ -414,7 +437,8 @@ const handleSubmit = async (event) => {
             margin="normal" fullWidth
             id="remarks" label="Additional Remarks" name="remarks"
             multiline rows={4}
-            value={formData.remarks} onChange={handleChange}
+            value={formData.remarks || ''} 
+            onChange={handleChange}
           />
 
           {/* Submit Button */}
