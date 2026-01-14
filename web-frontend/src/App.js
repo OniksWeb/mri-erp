@@ -1,6 +1,7 @@
 // web-frontend/src/App.js
-import React, { useEffect } from 'react'; // ✅ Added useEffect
-import { Routes, Route, useLocation } from 'react-router-dom'; // ✅ Added useLocation
+import React, { useEffect } from 'react';
+// ✅ IMPORT HashRouter here to fix the White Screen
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -24,7 +25,7 @@ import ResultsDashboardPage from './pages/ResultsDashboardPage';
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 
-// ✅ NEW COMPONENT: Tracks route changes and saves to LocalStorage
+// ✅ COMPONENT: Tracks route changes and saves to LocalStorage
 const RouteTracker = () => {
   const location = useLocation();
 
@@ -43,134 +44,137 @@ const RouteTracker = () => {
 
 function App() {
   return (
-    <div className="App">
-      {/* ✅ Insert the Tracker here so it monitors all Route changes */}
-      <RouteTracker /> 
+    // ✅ FIX: Wrapped entire app in HashRouter for Electron compatibility
+    <HashRouter>
+      <div className="App">
+        {/* ✅ Insert the Tracker inside the Router so useLocation works */}
+        <RouteTracker /> 
 
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/" element={<LoginPage />} />
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/" element={<LoginPage />} />
 
-        {/* Protected Routes - require authentication and specific roles */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/patients"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <PatientListPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Routes - require authentication and specific roles */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patients"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <PatientListPage />
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/patients/add"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <AddPatientPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patients/:id/details" // Patient Detail, Edit, Delete page
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <PatientDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patients/:id/results/manage" // NEW: Manage Results (list, status, issue)
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor']}> 
+                <ResultManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/results/upload" // NEW: Result Upload page
+            element={
+              <ProtectedRoute requiredRoles={['admin', 'doctor']}> 
+                <ResultUploadPage />
+              </ProtectedRoute>
+            }
+          />
          <Route
-          path="/patients/add"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <AddPatientPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/patients/:id/details" // Patient Detail, Edit, Delete page
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <PatientDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/patients/:id/results/manage" // NEW: Manage Results (list, status, issue)
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor']}> 
-              <ResultManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/results/upload" // NEW: Result Upload page
-          element={
-            <ProtectedRoute requiredRoles={['admin', 'doctor']}> 
-              <ResultUploadPage />
-            </ProtectedRoute>
-          }
-        />
-       <Route
-          path="/results/dashboard" 
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <ResultsDashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <UserProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/queries/submit"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <SubmitQueryPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/queries/my"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <MyQueriesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRoles={['admin']}>
-              <AdminPanelPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/queries"
-          element={
-            <ProtectedRoute requiredRoles={['admin']}>
-              <AdminQueriesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/staff-activity"
-          element={
-            <ProtectedRoute requiredRoles={['admin']}>
-              <AdminStaffActivityPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
-              <ChatPage />
-            </ProtectedRoute>
-          }
-        />
+            path="/results/dashboard" 
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <ResultsDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/queries/submit"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <SubmitQueryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/queries/my"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <MyQueriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <AdminPanelPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/queries"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <AdminQueriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/staff-activity"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <AdminStaffActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute requiredRoles={['medical_staff', 'admin', 'doctor', 'financial_admin']}>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Catch-all for undefined routes */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </div>
+          {/* Catch-all for undefined routes */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </div>
+    </HashRouter>
   );
 }
 

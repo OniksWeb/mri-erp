@@ -1,5 +1,5 @@
 // web-frontend/src/pages/AddPatientPage.js
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,8 +19,7 @@ import {
   Grid,
   InputAdornment,
   Stack,
-  Snackbar, // ✅ Alert Replacement
-  Backdrop  // ✅ Loading Overlay
+  Snackbar 
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
@@ -30,6 +29,9 @@ function AddPatientPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
   
+  // ✅ 1. Create a Reference for the first input
+  const nameInputRef = useRef(null);
+
   // Initial Empty State
   const initialFormState = {
     patient_name: '',
@@ -50,29 +52,35 @@ function AddPatientPage() {
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // ✅ Notification State (Fixes "openSnackbar is not defined")
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
-  // 1. LOAD DRAFT (Safe Merge)
+  // ✅ 2. FORCE FOCUS ON LOAD (The "Minimize" Fix)
+  useEffect(() => {
+    // Wait for the animation to finish, then force the cursor into the box
+    const timer = setTimeout(() => {
+      if (nameInputRef.current) {
+        nameInputRef.current.focus();
+      }
+    }, 300); // 300ms delay ensures the page is fully rendered
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 3. LOAD DRAFT
   useEffect(() => {
     const savedDraft = localStorage.getItem('patient_form_draft');
     if (savedDraft) {
       try {
         const parsedDraft = JSON.parse(savedDraft);
-        // Merge with initial state to prevent undefined inputs (The "Freezing" Fix)
         setFormData({ ...initialFormState, ...parsedDraft });
-        console.log("📝 Restored draft from storage");
       } catch (err) {
-        console.error("Error parsing draft:", err);
         localStorage.removeItem('patient_form_draft');
       }
     }
   }, []);
 
-  // 2. SAVE DRAFT (Auto-Save on Change)
+  // 4. SAVE DRAFT
   useEffect(() => {
-    const hasData = formData.patient_name || formData.contact_email || formData.age || (formData.examinations[0] && formData.examinations[0].name);
+    const hasData = formData.patient_name || formData.contact_email;
     if (hasData) {
       localStorage.setItem('patient_form_draft', JSON.stringify(formData));
     }
@@ -130,11 +138,9 @@ function AddPatientPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    setLoading(true); // ✅ Triggers the Backdrop Overlay
+    setLoading(true);
 
-    // --- Validation ---
     const { patient_name, contact_email, examinations, age, weight_kg, payment_type } = formData;
-    
     if (!patient_name?.trim()) { setError('Patient Name is required.'); setLoading(false); return; }
     if (!contact_email?.trim() || !contact_email.includes('@')) { setError('Valid Email required.'); setLoading(false); return; }
     if (!age || isNaN(age) || age <= 0) { setError('Age must be a positive number.'); setLoading(false); return; }
@@ -149,15 +155,11 @@ function AddPatientPage() {
       }
     }
 
-    if (!token) {
-      setError('Authentication token missing. Please log in again.');
-      setLoading(false);
-      return;
-    }
+    if (!token) { setError('Auth missing. Log in again.'); setLoading(false); return; }
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch('https://g2g-mri-erp-bfw57.ondigitalocean.app/api/patients', {
         method: 'POST',
@@ -173,24 +175,18 @@ function AddPatientPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setOpenSnackbar(true); // ✅ Show smooth popup
-        localStorage.removeItem('patient_form_draft'); // ✅ Clear Draft
-        setFormData(initialFormState); // Reset Form
-        
-        // Navigate after 1 second (Smooth transition)
-        setTimeout(() => navigate('/patients'), 1000); 
+        setOpenSnackbar(true);
+        localStorage.removeItem('patient_form_draft');
+        setFormData(initialFormState);
+        setTimeout(() => navigate('/patients'), 1000);
       } else {
         setError(data.message || 'Failed to add patient record.');
       }
     } catch (err) {
-      console.error('Error adding patient record:', err);
-      if (err.name === 'AbortError') {
-        setError('Request timed out. Server is taking too long to respond.');
-      } else {
-        setError('Network error or server unavailable. Please try again.');
-      }
+      console.error(err);
+      setError(err.name === 'AbortError' ? 'Request timed out.' : 'Network error.');
     } finally {
-      setLoading(false); // ✅ Hides Backdrop
+      setLoading(false);
     }
   };
 
@@ -213,9 +209,12 @@ function AddPatientPage() {
           <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Patient Demographics</Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
-              {/* ✅ FIXED: Added || '' to prevent input freezing */}
-              <TextField margin="normal" required fullWidth id="patient_name" label="Patient Name" name="patient_name"
-                value={formData.patient_name || ''} onChange={handleChange} />
+              {/* ✅ 3. ATTACH REF HERE */}
+              <TextField 
+                inputRef={nameInputRef} // Forces focus on this input
+                margin="normal" required fullWidth id="patient_name" label="Patient Name" name="patient_name"
+                value={formData.patient_name || ''} onChange={handleChange} 
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField margin="normal" fullWidth select id="gender" label="Gender" name="gender"
@@ -318,14 +317,13 @@ function AddPatientPage() {
           <TextField margin="normal" fullWidth id="remarks" label="Additional Remarks" name="remarks" multiline rows={4}
             value={formData.remarks || ''} onChange={handleChange} />
 
-          {/* Submit Button */}
-          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-            Add Patient Record
+          {/* Submit Button (Spinner inside button now) */}
+          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2, height: 50 }} disabled={loading}>
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Add Patient Record'}
           </Button>
         </Box>
       </Paper>
 
-      {/* ✅ Smooth Snackbar Notification */}
       <Snackbar
         open={openSnackbar}
         autoHideDuration={6000}
@@ -333,18 +331,6 @@ function AddPatientPage() {
         message="Patient record added successfully! Redirecting..."
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
-
-      {/* ✅ FULL SCREEN LOADING OVERLAY (Spinner) */}
-      <Backdrop
-        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
-        open={loading}
-      >
-        <Stack alignItems="center" gap={2}>
-          <CircularProgress color="inherit" />
-          <Typography variant="h6">Processing Patient Record...</Typography>
-        </Stack>
-      </Backdrop>
-
     </Container>
   );
 }
