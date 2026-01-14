@@ -27,15 +27,21 @@ import puppeteer from "puppeteer";
 // ------------------ Config & Utils ------------------
 import { s3Client } from "../config/s3.js";
 import { v4 as uuidv4 } from "uuid";
-import pdf from "html-pdf-node";
+import pdf from "html-pdf-node"; 
+import htmlPdf from "html-pdf-node";
 import Handlebars from "handlebars";
+
 import PDFDocument from "pdfkit";
+import { PassThrough } from "stream";
 import ExcelJS from "exceljs";
+
 
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { formatNumbersInResponse } from "../utils/formatNumber.js";
+
+
 
 // ------------------ Config checks ------------------
 if (!process.env.JWT_SECRET) {
@@ -101,7 +107,13 @@ const io = new Server(server, {
     methods: ['GET','POST']
   }
 });
+io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
+  socket.on('disconnect', () => console.log('Socket disconnected:', socket.id));
+});
 
+
+// When a user connects
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -1182,7 +1194,7 @@ function imageToBase64(filePath) {
   return `data:image/${ext};base64,${fileData.toString("base64")}`;
 }
 
-// ---------- Get Single Patient Details (CRASH FIXED) ----------
+// ---------- Get Single Patient Details (Fixed) ----------
 app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1190,12 +1202,31 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
     const result = await pool.query(
       `
       SELECT 
-        p.id, p.serial_number, p.patient_name, p.gender, p.age, p.weight_kg,
-        p.contact_email, p.contact_phone_number, p.referral_hospital, p.referring_doctor,
-        p.radiographer_name, p.radiologist_name, p.remarks, p.mri_code, p.mri_date_time,
-        p.receipt_number, p.payment_type, p.payment_status, p.total_amount,
-        p.created_at, p.updated_at, p.examination_test_name, p.examination_breakdown_amount_naira,
-        p.recorded_by_staff_name, p.recorded_by_staff_email,
+        p.id,
+        p.serial_number,
+        p.patient_name,
+        p.gender,
+        p.age,
+        p.weight_kg,
+        p.contact_email,
+        p.contact_phone_number,
+        p.referral_hospital,
+        p.referring_doctor,
+        p.radiographer_name,
+        p.radiologist_name,
+        p.remarks,
+        p.mri_code,
+        p.mri_date_time,
+        p.receipt_number,
+        p.payment_type,
+        p.payment_status,
+        p.total_amount,
+        p.created_at,
+        p.updated_at,
+        p.examination_test_name,
+        p.examination_breakdown_amount_naira,
+        p.recorded_by_staff_name,
+        p.recorded_by_staff_email,
         COALESCE(
           json_agg(
             json_build_object(
