@@ -1194,7 +1194,7 @@ function imageToBase64(filePath) {
   return `data:image/${ext};base64,${fileData.toString("base64")}`;
 }
 
-// ---------- Get Single Patient Details (Crash FIX Applied Here) ----------
+// ---------- Get Single Patient Details (Fixed) ----------
 app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doctor', 'financial_admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1202,14 +1202,31 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
     const result = await pool.query(
       `
       SELECT 
-        p.id, p.serial_number, p.patient_name, p.gender, p.age, p.weight_kg,
-        p.contact_email, p.contact_phone_number, p.referral_hospital, p.referring_doctor,
-        p.radiographer_name, p.radiologist_name, p.remarks, p.mri_code, p.mri_date_time,
-        p.receipt_number, p.payment_type, p.payment_status, p.total_amount,
-        p.created_at, p.updated_at, p.examination_test_name, p.examination_breakdown_amount_naira,
-        p.recorded_by_staff_id,
-        u.full_name AS recorded_by_staff_name,
-        u.email AS recorded_by_staff_email,
+        p.id,
+        p.serial_number,
+        p.patient_name,
+        p.gender,
+        p.age,
+        p.weight_kg,
+        p.contact_email,
+        p.contact_phone_number,
+        p.referral_hospital,
+        p.referring_doctor,
+        p.radiographer_name,
+        p.radiologist_name,
+        p.remarks,
+        p.mri_code,
+        p.mri_date_time,
+        p.receipt_number,
+        p.payment_type,
+        p.payment_status,
+        p.total_amount,
+        p.created_at,
+        p.updated_at,
+        p.examination_test_name,
+        p.examination_breakdown_amount_naira,
+        p.recorded_by_staff_name,
+        p.recorded_by_staff_email,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1221,10 +1238,10 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
           '[]'
         ) AS examinations
       FROM mri_patients p
-      LEFT JOIN patient_examinations e ON p.id = e.patient_id
-      LEFT JOIN users u ON p.recorded_by_staff_id = u.id 
+      LEFT JOIN patient_examinations e 
+        ON p.id = e.patient_id
       WHERE p.id = $1
-      GROUP BY p.id, u.id;
+      GROUP BY p.id;
       `,
       [id]
     );
@@ -1235,22 +1252,30 @@ app.get("/api/patients/:id", auth, authorizeRoles('medical_staff', 'admin', 'doc
 
     const patient = result.rows[0];
 
-    // Format amounts
-    patient.total_amount = formatAmount(patient.total_amount);
-    patient.examination_breakdown_amount_naira = formatAmount(patient.examination_breakdown_amount_naira);
+    // ✅ Helper to safely format currency strings
+    const formatMoney = (val) => {
+      if (!val) return "0.00";
+      return Number(val).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+    };
 
+    // Format amounts with commas before sending
+    patient.total_amount = formatMoney(patient.total_amount);
+    patient.examination_breakdown_amount_naira = formatMoney(patient.examination_breakdown_amount_naira);
+
+    // Also format nested examinations
     if (patient.examinations && Array.isArray(patient.examinations)) {
       patient.examinations = patient.examinations.map(exam => ({
         ...exam,
-        amount: formatAmount(exam.amount)
+        amount: formatMoney(exam.amount)
       }));
     }
 
-    // ✅ FIX: Send response exactly ONCE
+    // ✅ CRASH FIX: This is the ONLY place res.json is called
     return res.json(patient);
 
   } catch (err) {
     console.error("Error fetching patient details:", err);
+    // Only send error response if headers haven't been sent yet
     if (!res.headersSent) {
         return res.status(500).json({ message: "Failed to fetch patient details" });
     }
