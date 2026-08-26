@@ -1,0 +1,105 @@
+/* mri-erp-app/web-frontend/src/calendar-overrides.css */
+
+/* Basic Reset/Font */
+.rbc-calendar {
+    font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif; /* Use your Material-UI font */
+    font-size: 14px; /* Adjust base font size */
+}
+
+/* Toolbar Styling */
+.rbc-toolbar {
+    background-color: #f5f5f5; /* Light grey for light mode */
+    color: #333; /* Dark text */
+    border-bottom: 1px solid #e0e0e0; /* Subtle separator */
+    padding: 10px 15px;
+    border-radius: 8px 8px 0 0; /* Match card border radius */
+}
+body.dark-mode .rbc-toolbar {
+    background-color: #424242; /* Darker grey for dark mode */
+    color: #fff;
+    border-bottom-color: #555;
+}
+
+/* Toolbar Buttons */
+.rbc-toolbar button {
+    color: #3f51b5; /* Primary color from Material-UI for buttons */
+    border: 1px solid #3f51b5;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: none;
+    transition: background-color 0.3s ease;
+    text-transform: uppercase; /* Match Material-UI button style */
+    font-weight: 500;
+    font-size: 0.8rem;
+}
+body.dark-mode .rbc-toolbar button {
+    color: #90caf9; /* Lighter primary for dark mode */
+    border-color: #90caf9;
+}
+
+.rbc-toolbar button:hover {
+    background-color: rgba(63, 81, 181, 0.08); /* Light hover effect */
+}
+body.dark-mode .rbc-toolbar button:hover {
+    background-color: rgba(144, 202, 249, 0.08);
+}
+
+.rbc-toolbar button.rbc-active {
+    background-color: #3f51b5 !important; /* Active button background */
+    color: #fff !important; /* Active button text color */
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+}
+body.dark-mode .rbc-toolbar button.rbc-active {
+    background-color: #90caf9 !important;
+    color: #121212 !important; /* Dark text on light background */
+}
+
+/* Month/Week/Day headers */
+.rbc-header {
+    font-weight: bold;
+    color: rgba(0, 0, 0, 0.87); /* Default text color for headers */
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0; /* Separator for headers */
+    background-color: #fafafa; /* Light background for headers */
+}
+body.dark-mode .rbc-header {
+    color: rgba(255, 255, 255, 0.87);
+    border-bottom-color: #555;
+    background-color: #303030;
+}
+.rbc-off-range-bg {
+    background-color: #fbfbfb; /* Lighter grey for non-current month days */
+}
+body.dark-mode .rbc-off-range-bg {
+    background-color: #2b2b2b;
+}
+
+/* Current day highlight */
+.rbc-today {
+    background-color: #e3f2fd !important; /* Light blue for today */
+}
+body.dark-mode .rbc-today {
+    background-color: #1a237e !important; /* Dark blue for today in dark mode */
+}
+
+/* Selected slot styling for drag/drop */
+.rbc-addons-dnd-resizable {
+    border: 2px solid #ffc107 !important; /* Yellow highlight for resize */
+}
+.rbc-addons-dnd-drag-preview {
+    background-color: rgba(76, 175, 80, 0.3) !important; /* Greenish overlay for drag preview */
+}
+
+/* Events on the calendar */
+.rbc-event {
+    border-radius: 4px;
+    font-size: 0.8rem;
+    padding: 2px 5px;
+    box-shadow: 0px 1px 3px rgba(0,0,0,0.2);
+    color: white !important; /* Default event text color, overridden by eventPropGetter */
+    background-color: #1976d2 !important; /* Default event background, overridden by eventPropGetter */
+}
+body.dark-mode .rbc-event {
+    color: #eee !important;
+    background-color: #64b5f6 !important;
+}

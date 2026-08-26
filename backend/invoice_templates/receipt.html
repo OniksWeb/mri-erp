@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Receipt</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+    .container { width: 800px; margin: 0 auto; border: 1px solid #eee; padding: 30px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { text-align: center; color: #2e7d32; }
+    .logo-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .logo { width: 120px; height: auto; }
+    .header, .footer { text-align: center; margin-bottom: 20px; }
+    .details-section { margin-top: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; }
+    .details-block { flex: 1; padding: 10px; border: 1px solid #eee; margin: 5px; }
+    .details-block h3 { margin-top: 0; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    table th, table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    table th { background-color: #f2f2f2; color: #333; }
+    .total-section { text-align: right; margin-top: 20px; font-size: 1.2em; font-weight: bold; }
+    .remarks { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
+    .footer { font-size: 0.8em; color: #777; margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo-row">
+      <img src="{{logoLeft}}" class="logo" alt="Logo Left" />
+      <img src="{{logoRight}}" class="logo" alt="Logo Right" />
+    </div>
+
+    <div class="header">
+      <h1>Payment Receipt</h1>
+      <p><strong>Lab Name:</strong> Laotech University Teaching Hospital</p>
+      <p><strong>Address:</strong> 123 Health Street, City, Country</p>
+      <p><strong>Phone:</strong> +1 (123) 456-7890 | <strong>Email:</strong> info@g2gmedical@gmail.com</p>
+    </div>
+
+    <hr />
+
+    <div class="details-section">
+      <div class="details-block">
+        <h3>Receipt Details</h3>
+        <p><strong>Receipt No:</strong> {{receiptId}}</p>
+        <p><strong>Date:</strong> {{receiptDate}}</p>
+        <p><strong>MRI Code:</strong> {{mriCode}}</p>
+      </div>
+      <div class="details-block">
+        <h3>Patient Details</h3>
+        <p><strong>Name:</strong> {{patientName}}</p>
+        <p><strong>Gender:</strong> {{patientGender}}</p>
+        <p><strong>Contact:</strong> {{patientContact}}</p>
+      </div>
+      <div class="details-block">
+        <h3>Payment Info</h3>
+        <p><strong>Status:</strong> {{paymentStatus}}</p>
+        <p><strong>Type:</strong> {{paymentType}}</p>
+        <p><strong>Date Paid:</strong> {{paymentDate}}</p>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Service Description</th>
+          <th>Quantity</th>
+          <th>Unit Price (₦)</th>
+          <th>Amount (₦)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr>
+          <td>{{description}}</td>
+          <td>{{quantity}}</td>
+          <td>₦{{unitPrice}}</td>
+          <td>₦{{amount}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <div class="total-section">
+      Total Paid: ₦{{totalAmount}}
+    </div>
+
+    <div class="remarks">
+      <h3>Remarks:</h3>
+      <p>{{patientRemarks}}</p>
+      <p><strong>Radiographer:</strong> {{radiographerName}}</p>
+      <p><strong>Radiologist:</strong> {{radiologistName}}</p>
+    </div>
+
+    <div class="footer">
+      <p>Payment received in full. Thank you for your trust.</p>
+      <p>&copy; {{currentYear}} G2GMedical Services</p>
+    </div>
+  </div>
+</body>
+</html>

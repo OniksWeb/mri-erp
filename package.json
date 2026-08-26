@@ -1,0 +1,75 @@
+{
+  "name": "mri-erp-app",
+  "version": "1.0.21",
+  "description": "An ERP application for managing MRI patient inventory.",
+  "author": "OniksWeb",
+  "main": "electron-main/electron.js",
+  "homepage": "./",
+  "license": "ISC",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OniksWeb/erp-frontend-desktop.git"
+  },
+  "scripts": {
+    "start:react": "npm start --prefix web-frontend",
+    "build:react": "npm run build --prefix web-frontend",
+    "copy:build": "rimraf ./build && copyfiles -u 2 web-frontend/build/**/* build",
+    "electron:dev": "npm run build:react && npm run copy:build && electron .",
+    "electron:build": "npm run build:react && npm run copy:build && electron-builder -p always"
+  },
+  "dependencies": {
+    "electron-is-dev": "^3.0.1",
+    "electron-updater": "^6.8.9",
+    "file-saver": "^2.0.5",
+    "jspdf": "^3.0.2",
+    "jspdf-autotable": "^5.0.2",
+    "lucide-react": "^0.544.0",
+    "puppeteer": "^24.20.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "copyfiles": "^2.4.1",
+    "cross-env": "^10.0.0",
+    "electron": "^37.2.1",
+    "electron-builder": "^24.13.3",
+    "rimraf": "^6.0.1",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.g2gmedical.mri-erp-app",
+    "productName": "G2G Medical MRI ERP",
+    "icon": "web-frontend/src/assets/gg2g1_fixed.ico",
+    "copyright": "Copyright © 2026 G2G Medical",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "OniksWeb",
+      "repo": "erp-frontend-desktop"
+    },
+    "files": [
+      "electron-main/**/*",
+      "build/**/*"
+    ],
+    "asarUnpack": [
+      "build/**/*"
+    ],
+    "win": {
+      "icon": "web-frontend/gg2g1_fixed.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "forceCodeSigning": false
+  }
+}

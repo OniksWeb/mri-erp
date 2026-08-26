@@ -1,0 +1,11 @@
+# dependencies
+/node_modules
+/electron-main/node_modules
+web-frontend/dist/
+
+# build outputs
+/dist
+/build
+
+# Environment variables
+.env
