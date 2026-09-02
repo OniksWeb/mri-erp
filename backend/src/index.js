@@ -206,14 +206,8 @@ const formatAmount = (amount) => {
 };
 
 // ------------------ Postgres Pool ------------------
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: Number(process.env.DB_PORT) || 25060,
-  ssl: { rejectUnauthorized: false },
-});
+// Replace the local pool definition with your shared config import:
+const pool = require('../config/db'); // or import pool from '../config/db.js'; depending on index.js syntax
 
 (async () => {
   try {
