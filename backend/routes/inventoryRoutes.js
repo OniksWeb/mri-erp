@@ -1,8 +1,9 @@
 // backend/routes/inventoryRoutes.js
-const express = require('express');
+import express from 'express';
+import { getInventory, createItem, deleteItem, recordTransaction } from '../controllers/inventoryController.js';
+import { auth as protect, authorizeRoles as adminOnly } from '../middleware/auth.js';
+
 const router = express.Router();
-const { getInventory, createItem, deleteItem, recordTransaction } = require('../controllers/inventoryController');
-const { auth: protect, authorizeRoles: adminOnly } = require('../src/middleware/auth');
 
 router.get('/', protect, getInventory);
 router.post('/', protect, createItem);
