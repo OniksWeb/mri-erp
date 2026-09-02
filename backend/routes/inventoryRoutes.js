@@ -9,4 +9,4 @@ router.post('/', protect, createItem);
 router.delete('/:id', protect, adminOnly, deleteItem);
 router.post('/transaction', protect, recordTransaction);
 
-module.exports = router;
+export default router;
