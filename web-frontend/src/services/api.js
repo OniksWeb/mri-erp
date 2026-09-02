@@ -3,7 +3,8 @@ import axios from 'axios';
 
 // Create an Axios instance with the base URL configured for your backend
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  // ✅ FIX: Force the live DigitalOcean URL as the default fallback
+  baseURL: process.env.REACT_APP_API_URL || 'https://g2g-mri-erp-bfw57.ondigitalocean.app/api',
   headers: {
     'Content-Type': 'application/json',
   },

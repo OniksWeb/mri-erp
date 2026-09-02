@@ -6,7 +6,6 @@ import {
   DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select,
   FormControl, InputLabel, Tabs, Tab, Alert, Card, CardContent
 } from '@mui/material';
-// To this:
 import { Plus as AddIcon, Trash2 as DeleteIcon, ArrowLeftRight as TransferIcon, BarChart3 as StatsIcon, Calendar as CalendarIcon, Package as InventoryIcon } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '../services/api';
@@ -15,23 +14,21 @@ const InventoryPage = () => {
   const [tabIndex, setTabIndex] = useState(0);
   const [inventory, setInventory] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [stats, setStats] = useState({ totalItems: 0, lowStock: 0, totalValue: 0 });
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openTransactionDialog, setOpenTransactionDialog] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Form states for new item
-  const [newItem, setNewItem] = useState({ name: '', category: '', quantity: '', unitPrice: '', minStockLevel: 5 });
+  // Form states for new item (matching backend columns)
+  const [newItem, setNewItem] = useState({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
 
-  // Form states for stock movement (OUT/IN)
+  // Form states for stock movement
   const [txnData, setTxnData] = useState({
-    itemId: '', type: 'OUT_LAB', quantity: 1, recipientType: 'INTERNAL_LAB',
-    recipientName: '', contactInfo: '', scheduledDate: ''
+    itemId: '', action_type: 'RESTOCK', quantity: 1, notes: ''
   });
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'inventory_manager';
 
   useEffect(() => {
     fetchInventoryData();
@@ -39,27 +36,22 @@ const InventoryPage = () => {
 
   const fetchInventoryData = async () => {
     try {
-      const res = await api.get('/inventory');
-      setInventory(res.data.items || []);
-      setTransactions(res.data.transactions || []);
-      setStats(res.data.stats || { totalItems: 0, lowStock: 0, totalValue: 0 });
+      // Your backend returns an array of items directly from /api/inventory
+      const res = await api.get('/api/inventory');
+      setInventory(res.data || []);
     } catch (err) {
       console.error('Error fetching inventory:', err);
-      // Fallback mock states if endpoint is still syncing
-      setInventory([
-        { id: 1, name: 'MRI Cooling Cryogen', category: 'Chemicals', quantity: 12, unitPrice: 150000, minStockLevel: 3 },
-        { id: 2, name: 'RF Shielding Gasket', category: 'Hardware', quantity: 4, unitPrice: 45000, minStockLevel: 5 }
-      ]);
+      setError('Failed to load inventory from server.');
     }
   };
 
   const handleCreateItem = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/inventory', newItem);
+      await api.post('/api/inventory', newItem);
       setSuccess('Item added successfully');
       setOpenAddDialog(false);
-      setNewItem({ name: '', category: '', quantity: '', unitPrice: '', minStockLevel: 5 });
+      setNewItem({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
       fetchInventoryData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add item');
@@ -68,12 +60,13 @@ const InventoryPage = () => {
 
   const handleDeleteItem = async (id) => {
     if (!isAdmin) {
-      alert('Unauthorized: Only administrators can delete inventory items.');
+      alert('Unauthorized: Only administrators or inventory managers can delete items.');
       return;
     }
     if (window.confirm('Are you sure you want to delete this inventory item?')) {
       try {
-        await api.delete(`/inventory/${id}`);
+        // ✅ FIXED: Added explicit /api prefix to ensure correct routing
+        await api.delete(`/api/inventory/${id}`);
         setSuccess('Item deleted successfully');
         fetchInventoryData();
       } catch (err) {
@@ -85,30 +78,37 @@ const InventoryPage = () => {
   const handleRecordTransaction = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/inventory/transaction', txnData);
-      setSuccess('Stock transaction recorded & scheduled successfully');
+      await api.post(`/api/inventory/${txnData.itemId}/transaction`, {
+        action_type: txnData.action_type,
+        quantity: txnData.quantity,
+        notes: txnData.notes
+      });
+      setSuccess('Stock transaction recorded successfully');
       setOpenTransactionDialog(false);
-      setTxnData({ itemId: '', type: 'OUT_LAB', quantity: 1, recipientType: 'INTERNAL_LAB', recipientName: '', contactInfo: '', scheduledDate: '' });
+      setTxnData({ itemId: '', action_type: 'RESTOCK', quantity: 1, notes: '' });
       fetchInventoryData();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to log transaction');
+      setError(err.response?.data?.message || 'Failed to process transaction');
     }
   };
 
-  // Chart data calculation
+  // Chart data calculation using PostgreSQL property names
   const chartData = inventory.map(item => ({
-    name: item.name,
-    Quantity: item.quantity,
-    MinRequired: item.minStockLevel
+    name: item.item_name,
+    Quantity: Number(item.quantity_in_stock || 0),
+    MinRequired: Number(item.reorder_level || 5)
   }));
+
+  const totalValue = inventory.reduce((acc, curr) => acc + (Number(curr.quantity_in_stock || 0) * Number(curr.unit_price || 0)), 0);
+  const lowStockCount = inventory.filter(i => Number(i.quantity_in_stock || 0) <= Number(i.reorder_level || 5)).length;
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight="bold">📦 G2G Medical Inventory & Logistics</Typography>
         <Box>
-          <Button variant="contained" color="primary" startAdd={<AddIcon />} onClick={() => setOpenTransactionDialog(true)} sx={{ mr: 2 }}>
-            Log Movement / Schedule
+          <Button variant="contained" color="primary" onClick={() => setOpenTransactionDialog(true)} sx={{ mr: 2 }}>
+            Log Movement / Restock
           </Button>
           {isAdmin && (
             <Button variant="outlined" color="primary" onClick={() => setOpenAddDialog(true)}>
@@ -126,7 +126,7 @@ const InventoryPage = () => {
         <Grid item xs={12} sm={4}>
           <Card elevation={3}>
             <CardContent>
-              <Typography color="textSecondary" gutterNumber>Total Catalog Items</Typography>
+              <Typography color="textSecondary">Total Catalog Items</Typography>
               <Typography variant="h4" fontWeight="bold">{inventory.length}</Typography>
             </CardContent>
           </Card>
@@ -134,9 +134,9 @@ const InventoryPage = () => {
         <Grid item xs={12} sm={4}>
           <Card elevation={3} sx={{ borderLeft: '6px solid #d32f2f' }}>
             <CardContent>
-              <Typography color="textSecondary" gutterNumber>Low Stock Alerts</Typography>
+              <Typography color="textSecondary">Low Stock Alerts</Typography>
               <Typography variant="h4" fontWeight="bold" color="error">
-                {inventory.filter(i => i.quantity <= i.minStockLevel).length}
+                {lowStockCount}
               </Typography>
             </CardContent>
           </Card>
@@ -144,9 +144,9 @@ const InventoryPage = () => {
         <Grid item xs={12} sm={4}>
           <Card elevation={3} sx={{ borderLeft: '6px solid #2e7d32' }}>
             <CardContent>
-              <Typography color="textSecondary" gutterNumber>Estimated Stock Value</Typography>
+              <Typography color="textSecondary">Estimated Stock Value</Typography>
               <Typography variant="h4" fontWeight="bold" color="success.main">
-                ₦{inventory.reduce((acc, curr) => acc + (curr.quantity * curr.unitPrice), 0).toLocaleString()}
+                ₦{totalValue.toLocaleString()}
               </Typography>
             </CardContent>
           </Card>
@@ -157,8 +157,7 @@ const InventoryPage = () => {
       <Paper sx={{ mb: 3 }}>
         <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)} indicatorColor="primary" textColor="primary" centered>
           <Tab icon={<InventoryIcon size={20} />} label="Store Stock List" />
-          <Tab icon={<StatsIcon size={20} />} label="Movement Analytics" />
-          <Tab icon={<CalendarIcon size={20} />} label="Schedule & Deliveries" />
+          <Tab icon={<StatsIcon size={20} />} label="Stock Analytics" />
         </Tabs>
       </Paper>
 
@@ -170,6 +169,7 @@ const InventoryPage = () => {
               <TableRow>
                 <TableCell><b>Item Name</b></TableCell>
                 <TableCell><b>Category</b></TableCell>
+                <TableCell><b>Branch</b></TableCell>
                 <TableCell><b>In Stock</b></TableCell>
                 <TableCell><b>Min Level</b></TableCell>
                 <TableCell><b>Unit Price (₦)</b></TableCell>
@@ -178,15 +178,16 @@ const InventoryPage = () => {
             </TableHead>
             <TableBody>
               {inventory.map((item) => (
-                <TableRow key={item.id} sx={item.quantity <= item.minStockLevel ? { backgroundColor: 'rgba(211, 47, 47, 0.04)' } : {}}>
-                  <TableCell>{item.name}</TableCell>
+                <TableRow key={item.id} sx={Number(item.quantity_in_stock) <= Number(item.reorder_level) ? { backgroundColor: 'rgba(211, 47, 47, 0.04)' } : {}}>
+                  <TableCell>{item.item_name}</TableCell>
                   <TableCell>{item.category}</TableCell>
-                  <TableCell fontWeight="bold">{item.quantity}</TableCell>
-                  <TableCell>{item.minStockLevel}</TableCell>
-                  <TableCell>₦{Number(item.unitPrice).toLocaleString()}</TableCell>
+                  <TableCell>{item.branch_name || 'HQ / General'}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{item.quantity_in_stock}</TableCell>
+                  <TableCell>{item.reorder_level}</TableCell>
+                  <TableCell>₦{Number(item.unit_price || 0).toLocaleString()}</TableCell>
                   <TableCell align="right">
                     {isAdmin && (
-                      <IconButton color="error" onClick={() => handleDeleteItem(item.id)} title="Delete Item (Admin Only)">
+                      <IconButton color="error" onClick={() => handleDeleteItem(item.id)} title="Delete Item">
                         <DeleteIcon />
                       </IconButton>
                     )}
@@ -217,47 +218,17 @@ const InventoryPage = () => {
         </Paper>
       )}
 
-      {/* TAB 2: Schedule & Delivery Calendar Logs */}
-      {tabIndex === 2 && (
-        <Paper sx={{ p: 3 }} elevation={3}>
-          <Typography variant="h6" gutterBottom>📅 Scheduled Transfers & Customer Deliveries</Typography>
-          <TableContainer>
-            <Table>
-              <TableHead sx={{ backgroundColor: 'action.hover' }}>
-                <TableRow>
-                  <TableCell><b>Scheduled Date</b></TableCell>
-                  <TableCell><b>Movement Type</b></TableCell>
-                  <TableCell><b>Recipient / Customer</b></TableCell>
-                  <TableCell><b>Contact Info</b></TableCell>
-                  <TableCell><b>Status</b></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactions.filter(t => t.scheduledDate).map((txn, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{new Date(txn.scheduledDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{txn.type}</TableCell>
-                    <TableCell>{txn.recipientName}</TableCell>
-                    <TableCell>{txn.contactInfo || 'N/A'}</TableCell>
-                    <TableCell>{txn.status || 'PENDING'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      )}
-
       {/* Dialog: Add New Item */}
       <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
         <DialogTitle>Add New Inventory Item</DialogTitle>
         <form onSubmit={handleCreateItem}>
           <DialogContent>
-            <TextField fullWidth label="Item Name" margin="normal" required value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
+            <TextField fullWidth label="Item Name" margin="normal" required value={newItem.item_name} onChange={(e) => setNewItem({ ...newItem, item_name: e.target.value })} />
             <TextField fullWidth label="Category" margin="normal" required value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
-            <TextField fullWidth label="Initial Quantity" type="number" margin="normal" required value={newItem.quantity} onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })} />
-            <TextField fullWidth label="Unit Price (₦)" type="number" margin="normal" required value={newItem.unitPrice} onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })} />
-            <TextField fullWidth label="Min Safety Stock Level" type="number" margin="normal" value={newItem.minStockLevel} onChange={(e) => setNewItem({ ...newItem, minStockLevel: e.target.value })} />
+            <TextField fullWidth label="SKU / Code" margin="normal" value={newItem.sku} onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })} />
+            <TextField fullWidth label="Unit of Measurement (e.g. pcs, litres)" margin="normal" value={newItem.unit_of_measurement} onChange={(e) => setNewItem({ ...newItem, unit_of_measurement: e.target.value })} />
+            <TextField fullWidth label="Unit Price (₦)" type="number" margin="normal" value={newItem.unit_price} onChange={(e) => setNewItem({ ...newItem, unit_price: e.target.value })} />
+            <TextField fullWidth label="Min Safety Stock Level" type="number" margin="normal" value={newItem.reorder_level} onChange={(e) => setNewItem({ ...newItem, reorder_level: e.target.value })} />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
@@ -266,44 +237,32 @@ const InventoryPage = () => {
         </form>
       </Dialog>
 
-      {/* Dialog: Log Outbound/Inbound & Schedule */}
+      {/* Dialog: Log Inbound / Outbound Transaction */}
       <Dialog open={openTransactionDialog} onClose={() => setOpenTransactionDialog(false)}>
-        <DialogTitle>Log Material Movement & Delivery Schedule</DialogTitle>
+        <DialogTitle>Process Stock Movement</DialogTitle>
         <form onSubmit={handleRecordTransaction}>
           <DialogContent>
             <FormControl fullWidth margin="normal">
               <InputLabel>Select Item</InputLabel>
               <Select value={txnData.itemId} label="Select Item" required onChange={(e) => setTxnData({ ...txnData, itemId: e.target.value })}>
-                {inventory.map(i => (<MenuItem key={i.id} value={i.id}>{i.name} (Avail: {i.quantity})</MenuItem>))}
+                {inventory.map(i => (<MenuItem key={i.id} value={i.id}>{i.item_name} (Avail: {i.quantity_in_stock})</MenuItem>))}
               </Select>
             </FormControl>
 
             <FormControl fullWidth margin="normal">
-              <InputLabel>Movement Action</InputLabel>
-              <Select value={txnData.type} label="Movement Action" onChange={(e) => setTxnData({ ...txnData, type: e.target.value })}>
-                <MenuItem value="OUT_LAB">Transfer Out to Internal Lab</MenuItem>
-                <MenuItem value="OUT_CUSTOMER">Dispatch to External Customer</MenuItem>
-                <MenuItem value="IN">Inbound Restock</MenuItem>
+              <InputLabel>Action Type</InputLabel>
+              <Select value={txnData.action_type} label="Action Type" onChange={(e) => setTxnData({ ...txnData, action_type: e.target.value })}>
+                <MenuItem value="RESTOCK">Inbound Restock</MenuItem>
+                <MenuItem value="DISPENSE">Outbound Dispense / Usage</MenuItem>
               </Select>
             </FormControl>
 
-            <TextField fullWidth label="Quantity" type="number" margin="normal" required value={txnData.quantity} onChange={(e) => setTxnData({ ...txnData, quantity: e.target.value })} />
-            <TextField fullWidth label="Recipient Name (Lab Branch / Customer)" margin="normal" required value={txnData.recipientName} onChange={(e) => setTxnData({ ...txnData, recipientName: e.target.value })} />
-            <TextField fullWidth label="Recipient Contact / Address" margin="normal" value={txnData.contactInfo} onChange={(e) => setTxnData({ ...txnData, contactInfo: e.target.value })} />
-            
-            <TextField
-              fullWidth
-              label="Schedule Delivery / Arrival Date"
-              type="date"
-              margin="normal"
-              InputLabelProps={{ shrink: true }}
-              value={txnData.scheduledDate}
-              onChange={(e) => setTxnData({ ...txnData, scheduledDate: e.target.value })}
-            />
+            <TextField fullWidth label="Quantity Change" type="number" margin="normal" required value={txnData.quantity} onChange={(e) => setTxnData({ ...txnData, quantity: e.target.value })} />
+            <TextField fullWidth label="Notes / Reason" margin="normal" value={txnData.notes} onChange={(e) => setTxnData({ ...txnData, notes: e.target.value })} />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenTransactionDialog(false)}>Cancel</Button>
-            <Button type="submit" variant="contained">Confirm & Schedule</Button>
+            <Button type="submit" variant="contained">Confirm Movement</Button>
           </DialogActions>
         </form>
       </Dialog>
