@@ -54,7 +54,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // backend/server.js (or app.js)
-import inventoryRoutes from '../routes/inventoryRoutes.js';
+import { inventoryRoutes } from '../routes/inventoryRoutes.js';
 
 // --- Configure CORS properly ---
 const allowedOrigins = [
