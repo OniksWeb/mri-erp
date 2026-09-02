@@ -54,7 +54,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // backend/server.js (or app.js)
-const inventoryRoutes = require('./routes/inventoryRoutes');
+import inventoryRoutes from './routes/inventoryRoutes.js';
 
 // --- Configure CORS properly ---
 const allowedOrigins = [
@@ -1495,7 +1495,7 @@ app.get("/api/patients/export/excel", auth, async (req, res) => {
   });
 
   // Cache buster: Force fresh build deployment
-  
+
   // 4. GET: Fetch Audit Logs for an item
   app.get('/api/inventory/:id/logs', auth, authorizeRoles('admin', 'inventory_manager', 'hq_financial_admin'), async (req, res) => {
     try {
