@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { getInventory, createItem, deleteItem, recordTransaction } = require('../controllers/inventoryController');
-const { protect, adminOnly } = require('../middleware/auth'); // assuming standard auth guards
+const { protect, adminOnly } = require('../src/middleware/auth'); // assuming standard auth guards
 
 router.get('/', protect, getInventory);
 router.post('/', protect, createItem);
