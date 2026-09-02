@@ -1494,6 +1494,8 @@ app.get("/api/patients/export/excel", auth, async (req, res) => {
     }
   });
 
+  // Cache buster: Force fresh build deployment
+  
   // 4. GET: Fetch Audit Logs for an item
   app.get('/api/inventory/:id/logs', auth, authorizeRoles('admin', 'inventory_manager', 'hq_financial_admin'), async (req, res) => {
     try {
