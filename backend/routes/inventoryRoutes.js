@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get('/', protect, getInventory);
 router.post('/', protect, createItem);
-router.delete('/:id', protect, adminOnly, deleteItem);
+router.delete('/:id', deleteItem);
 router.post('/transaction', protect, recordTransaction);
 
 export default router;
