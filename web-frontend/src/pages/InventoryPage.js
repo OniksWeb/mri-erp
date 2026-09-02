@@ -67,7 +67,7 @@ const InventoryPage = () => {
       try {
         // ✅ FIXED: Added explicit /api prefix to ensure correct routing
         await api.delete(`/api/inventory/${id}`);
-        setSuccess('Item deleted successfully');
+        setSuccess('Item deleted successfully.');
         fetchInventoryData();
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to delete item');
