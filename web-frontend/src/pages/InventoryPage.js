@@ -31,66 +31,65 @@ const InventoryPage = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'inventory_manager';
 
   useEffect(() => {
-    fetchInventoryData();
-  }, []);
-
-  const fetchInventoryData = async () => {
-    try {
-      // Your backend returns an array of items directly from /api/inventory
-      const res = await api.get('/api/inventory');
-      setInventory(res.data || []);
-    } catch (err) {
-      console.error('Error fetching inventory:', err);
-      setError('Failed to load inventory from server.');
-    }
-  };
-
-  const handleCreateItem = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/api/inventory', newItem);
-      setSuccess('Item added successfully');
-      setOpenAddDialog(false);
-      setNewItem({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
       fetchInventoryData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add item');
-    }
-  };
+    }, []);
 
-  const handleDeleteItem = async (id) => {
-    if (!isAdmin) {
-      alert('Unauthorized: Only administrators or inventory managers can delete items.');
-      return;
-    }
-    if (window.confirm('Are you sure you want to delete this inventory item?')) {
+    const fetchInventoryData = async () => {
       try {
-        // ✅ FIXED: Added explicit /api prefix to ensure correct routing
-        await api.delete(`/api/inventory/${id}`);
-        setSuccess('Item deleted successfully.');
+        const res = await api.get('/api/inventory');
+        setInventory(res.data || []);
+      } catch (err) {
+        console.error('Error fetching inventory:', err);
+        setError('Failed to load inventory from server.');
+      }
+    };
+
+    const handleCreateItem = async (e) => {
+      e.preventDefault();
+      try {
+        await api.post('/api/inventory', newItem);
+        setSuccess('Item added successfully');
+        setOpenAddDialog(false);
+        setNewItem({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
         fetchInventoryData();
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to delete item');
+        setError(err.response?.data?.message || 'Failed to add item');
       }
-    }
-  };
+    };
 
-  const handleRecordTransaction = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post(`/api/inventory/${txnData.itemId}/transaction`, {
-        action_type: txnData.action_type,
-        quantity: txnData.quantity,
-        notes: txnData.notes
-      });
-      setSuccess('Stock transaction recorded successfully');
-      setOpenTransactionDialog(false);
-      setTxnData({ itemId: '', action_type: 'RESTOCK', quantity: 1, notes: '' });
-      fetchInventoryData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to process transaction');
-    }
-  };
+    const handleDeleteItem = async (id) => {
+      if (!isAdmin) {
+        alert('Unauthorized: Only administrators or inventory managers can delete items.');
+        return;
+      }
+      if (window.confirm('Are you sure you want to delete this inventory item?')) {
+        try {
+          // ✅ FIXED: Added back the /api prefix to match all other routes
+          await api.delete(`/api/inventory/${id}`);
+          setSuccess('Item deleted successfully.');
+          fetchInventoryData();
+        } catch (err) {
+          setError(err.response?.data?.message || 'Failed to delete item');
+        }
+      }
+    };
+
+    const handleRecordTransaction = async (e) => {
+      e.preventDefault();
+      try {
+        await api.post(`/api/inventory/${txnData.itemId}/transaction`, {
+          action_type: txnData.action_type,
+          quantity: txnData.quantity,
+          notes: txnData.notes
+        });
+        setSuccess('Stock transaction recorded successfully');
+        setOpenTransactionDialog(false);
+        setTxnData({ itemId: '', action_type: 'RESTOCK', quantity: 1, notes: '' });
+        fetchInventoryData();
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to process transaction');
+      }
+    };
 
   // Chart data calculation using PostgreSQL property names
   const chartData = inventory.map(item => ({

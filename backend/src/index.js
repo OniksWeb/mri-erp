@@ -97,6 +97,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ FIXED: Explicitly configure CORS to allow DELETE and preflight requests
+app.use(cors({
+  origin: '*', // Allows all origins (or you can specify your frontend URL)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
+
 // ... your other middleware and routes ...
 app.use('/api/inventory', inventoryRoutes);
 
