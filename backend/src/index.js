@@ -206,8 +206,8 @@ const formatAmount = (amount) => {
 };
 
 // ------------------ Postgres Pool ------------------
-// Replace the local pool definition with your shared config import:
-const pool = require('../config/db'); // or import pool from '../config/db.js'; depending on index.js syntax
+// Replace the require line with this:
+import pool from '../config/db.js';
 
 (async () => {
   try {
