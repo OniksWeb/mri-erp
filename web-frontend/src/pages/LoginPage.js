@@ -46,7 +46,7 @@ function LoginPage() {
         // Explicit role-based navigation
         // Explicit role-based navigation
         if (data.user.role === 'inventory_admin' || data.user.role === 'inventory_manager') {
-          navigate('/inventory'); // 👈 Routes both inventory roles straight to the control center
+          navigate('/inventory-manager/dashboard'); // 👈 Routes both inventory roles straight to the control center
         } else if (data.user.role === 'admin') {
           navigate('/dashboard');
         } else {

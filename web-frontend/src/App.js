@@ -142,7 +142,7 @@ function App() {
         <Route 
           path="/inventory-manager/dashboard" 
           element={
-            <ProtectedRoute requiredRoles={['inventory_manager', 'admin']}>
+            <ProtectedRoute requiredRoles={['admin', 'inventory_manager', 'inventory_admin']}>
               <InventoryManagerDashboard />
             </ProtectedRoute>
           } 
