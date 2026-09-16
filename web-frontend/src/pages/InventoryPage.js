@@ -13,11 +13,14 @@ import api from '../services/api';
 const InventoryPage = () => {
   const [tabIndex, setTabIndex] = useState(0);
   const [inventory, setInventory] = useState([]);
-  const [transactions, setTransactions] = useState([]);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openTransactionDialog, setOpenTransactionDialog] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   // Form states for new item (matching backend columns)
   const [newItem, setNewItem] = useState({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
@@ -31,65 +34,75 @@ const InventoryPage = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'inventory_manager';
 
   useEffect(() => {
+    fetchInventoryData();
+  }, []);
+
+  const fetchInventoryData = async () => {
+    try {
+      const res = await api.get('/api/inventory');
+      setInventory(res.data || []);
+    } catch (err) {
+      console.error('Error fetching inventory:', err);
+      setError('Failed to load inventory from server.');
+    }
+  };
+
+  const handleCreateItem = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/api/inventory', newItem);
+      setSuccess('Item added successfully');
+      setOpenAddDialog(false);
+      setNewItem({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
       fetchInventoryData();
-    }, []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to add item');
+    }
+  };
 
-    const fetchInventoryData = async () => {
+  const handleDeleteItem = async (id) => {
+    if (!isAdmin) {
+      alert('Unauthorized: Only administrators or inventory managers can delete items.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this inventory item?')) {
       try {
-        const res = await api.get('/api/inventory');
-        setInventory(res.data || []);
-      } catch (err) {
-        console.error('Error fetching inventory:', err);
-        setError('Failed to load inventory from server.');
-      }
-    };
-
-    const handleCreateItem = async (e) => {
-      e.preventDefault();
-      try {
-        await api.post('/api/inventory', newItem);
-        setSuccess('Item added successfully');
-        setOpenAddDialog(false);
-        setNewItem({ item_name: '', category: '', sku: '', unit_of_measurement: '', reorder_level: 5, unit_price: '' });
+        await api.delete(`/api/inventory/${id}`);
+        setSuccess('Item deleted successfully.');
         fetchInventoryData();
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to add item');
+        setError(err.response?.data?.message || 'Failed to delete item');
       }
-    };
+    }
+  };
 
-    const handleDeleteItem = async (id) => {
-      if (!isAdmin) {
-        alert('Unauthorized: Only administrators or inventory managers can delete items.');
-        return;
-      }
-      if (window.confirm('Are you sure you want to delete this inventory item?')) {
-        try {
-          // ✅ FIXED: Added back the /api prefix to match all other routes
-          await api.delete(`/api/inventory/${id}`);
-          setSuccess('Item deleted successfully.');
-          fetchInventoryData();
-        } catch (err) {
-          setError(err.response?.data?.message || 'Failed to delete item');
-        }
-      }
-    };
+  const handleRecordTransaction = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/api/inventory/${txnData.itemId}/transaction`, {
+        action_type: txnData.action_type,
+        quantity: txnData.quantity,
+        notes: txnData.notes
+      });
+      setSuccess('Stock transaction recorded successfully');
+      setOpenTransactionDialog(false);
+      setTxnData({ itemId: '', action_type: 'RESTOCK', quantity: 1, notes: '' });
+      fetchInventoryData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to process transaction');
+    }
+  };
 
-    const handleRecordTransaction = async (e) => {
-      e.preventDefault();
-      try {
-        await api.post(`/api/inventory/${txnData.itemId}/transaction`, {
-          action_type: txnData.action_type,
-          quantity: txnData.quantity,
-          notes: txnData.notes
-        });
-        setSuccess('Stock transaction recorded successfully');
-        setOpenTransactionDialog(false);
-        setTxnData({ itemId: '', action_type: 'RESTOCK', quantity: 1, notes: '' });
-        fetchInventoryData();
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to process transaction');
-      }
-    };
+  // Filtered Inventory Logic
+  const filteredInventory = inventory.filter(item => {
+    const matchesSearch = item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const categories = ['ALL', ...new Set(inventory.map(i => i.category))];
 
   // Chart data calculation using PostgreSQL property names
   const chartData = inventory.map(item => ({
@@ -160,42 +173,75 @@ const InventoryPage = () => {
         </Tabs>
       </Paper>
 
-      {/* TAB 0: Stock List Table */}
+      {/* TAB 0: Stock List Table with Search & Filters */}
       {tabIndex === 0 && (
-        <TableContainer component={Paper} elevation={3}>
-          <Table>
-            <TableHead sx={{ backgroundColor: 'action.hover' }}>
-              <TableRow>
-                <TableCell><b>Item Name</b></TableCell>
-                <TableCell><b>Category</b></TableCell>
-                <TableCell><b>Branch</b></TableCell>
-                <TableCell><b>In Stock</b></TableCell>
-                <TableCell><b>Min Level</b></TableCell>
-                <TableCell><b>Unit Price (₦)</b></TableCell>
-                <TableCell align="right"><b>Actions</b></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {inventory.map((item) => (
-                <TableRow key={item.id} sx={Number(item.quantity_in_stock) <= Number(item.reorder_level) ? { backgroundColor: 'rgba(211, 47, 47, 0.04)' } : {}}>
-                  <TableCell>{item.item_name}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell>{item.branch_name || 'HQ / General'}</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{item.quantity_in_stock}</TableCell>
-                  <TableCell>{item.reorder_level}</TableCell>
-                  <TableCell>₦{Number(item.unit_price || 0).toLocaleString()}</TableCell>
-                  <TableCell align="right">
-                    {isAdmin && (
-                      <IconButton color="error" onClick={() => handleDeleteItem(item.id)} title="Delete Item">
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                  </TableCell>
+        <>
+          <Box display="flex" gap={2} mb={3} flexDirection={{ xs: 'column', sm: 'row' }}>
+            <TextField
+              label="Search items by name, category, or SKU..."
+              variant="outlined"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ flexGrow: 1, backgroundColor: 'background.paper' }}
+            />
+            <FormControl size="small" sx={{ minWidth: 200, backgroundColor: 'background.paper' }}>
+              <InputLabel>Filter Category</InputLabel>
+              <Select
+                value={categoryFilter}
+                label="Filter Category"
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                {categories.map((cat, idx) => (
+                  <MenuItem key={idx} value={cat}>{cat.toUpperCase()}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          <TableContainer component={Paper} elevation={3}>
+            <Table>
+              <TableHead sx={{ backgroundColor: 'action.hover' }}>
+                <TableRow>
+                  <TableCell><b>Item Name</b></TableCell>
+                  <TableCell><b>Category</b></TableCell>
+                  <TableCell><b>Branch</b></TableCell>
+                  <TableCell><b>In Stock</b></TableCell>
+                  <TableCell><b>Min Level</b></TableCell>
+                  <TableCell><b>Unit Price (₦)</b></TableCell>
+                  <TableCell align="right"><b>Actions</b></TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {filteredInventory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      No inventory items match your search criteria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredInventory.map((item) => (
+                    <TableRow key={item.id} sx={Number(item.quantity_in_stock) <= Number(item.reorder_level) ? { backgroundColor: 'rgba(211, 47, 47, 0.04)' } : {}}>
+                      <TableCell>{item.item_name}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>{item.branch_name || 'HQ / General'}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{item.quantity_in_stock}</TableCell>
+                      <TableCell>{item.reorder_level}</TableCell>
+                      <TableCell>₦{Number(item.unit_price || 0).toLocaleString()}</TableCell>
+                      <TableCell align="right">
+                        {isAdmin && (
+                          <IconButton color="error" onClick={() => handleDeleteItem(item.id)} title="Delete Item">
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
 
       {/* TAB 1: Analytics & Charts */}

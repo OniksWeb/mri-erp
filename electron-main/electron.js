@@ -56,7 +56,16 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     if (app.isPackaged) {
-      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+      // ✅ Explicitly set feed provider if auto-detection fails
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: 'OniksWeb',
+        repo: 'mri-erp'
+      });
+      
+      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+        console.log('Auto-update check failed:', err);
+      });
     }
   });
 

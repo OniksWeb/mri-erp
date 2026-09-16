@@ -1,4 +1,9 @@
+// web-frontend/src/pages/StorePage.js
 import React, { useState, useEffect } from 'react';
+import { 
+  Package, Wrench, ArrowUpRight, ArrowDownLeft, Search, 
+  Filter, Plus, ShieldCheck, AlertCircle, Clock, CheckCircle2 
+} from 'lucide-react';
 import api from '../services/api';
 
 export default function StorePage() {
@@ -35,9 +40,10 @@ export default function StorePage() {
       ]);
       setStoreItems(itemsRes.data || []);
       setStoreLogs(logsRes.data || []);
+      setError('');
     } catch (err) {
       console.error('Error fetching store data:', err);
-      setError('Failed to load store inventory.');
+      setError('Failed to load store inventory from server.');
     }
   };
 
@@ -88,100 +94,137 @@ export default function StorePage() {
 
   // Filter and search logic
   const filteredItems = storeItems.filter(item => {
-    const matchesSearch = item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (item.serial_number && item.serial_number.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
   const categories = ['ALL', ...new Set(storeItems.map(i => i.category))];
+  const activeCheckoutsCount = storeLogs.filter(l => l.status === 'CHECKED_OUT').length;
 
   return (
-    <div className="p-6 bg-[#0f172a] min-h-screen text-white">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-8 bg-[#0b1329] min-h-screen text-slate-100">
+      
+      {/* Top Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold">G2G Medical Store & Equipment Custody</h1>
-          <p className="text-gray-400 text-sm">Track physical tools, equipment rentals, condition reviews, and custody logs.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30">
+              <Package size={22} />
+            </span>
+            <h1 className="text-2xl font-extrabold tracking-tight">Physical Store & Equipment Custody</h1>
+          </div>
+          <p className="text-slate-400 text-sm">Track physical tools, equipment deployments, condition audits, and active checkouts.</p>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setOpenAddModal(true)} 
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium text-sm transition">
-            + Add Store Equipment
-          </button>
-        </div>
+        
+        <button 
+          onClick={() => setOpenAddModal(true)} 
+          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-blue-500/20 transition duration-200">
+          <Plus size={18} /> Add Equipment
+        </button>
       </div>
 
-      {error && <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-200 text-sm">{error}</div>}
-      {success && <div className="mb-4 p-3 bg-green-900/50 border border-green-500 rounded text-green-200 text-sm">{success}</div>}
+      {/* Notifications Alerts */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-950/60 border border-red-500/50 rounded-xl text-red-200 text-sm flex items-center gap-3 backdrop-blur-md">
+          <AlertCircle size={18} className="text-red-400 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 p-4 bg-emerald-950/60 border border-emerald-500/50 rounded-xl text-emerald-200 text-sm flex items-center gap-3 backdrop-blur-md">
+          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-700 mb-6">
+      {/* Modern Navigation Tabs */}
+      <div className="flex border-b border-slate-800 gap-6 mb-6">
         <button 
           onClick={() => setActiveTab('inventory')}
-          className={`pb-3 px-4 font-medium text-sm border-b-2 transition ${activeTab === 'inventory' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-white'}`}>
-          Store Equipment Inventory
+          className={`pb-4 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 ${activeTab === 'inventory' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+          <Package size={16} /> Store Equipment Inventory ({storeItems.length})
         </button>
         <button 
           onClick={() => setActiveTab('logs')}
-          className={`pb-3 px-4 font-medium text-sm border-b-2 transition ${activeTab === 'logs' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-white'}`}>
-          Custody & Rental Logs ({storeLogs.filter(l => l.status === 'CHECKED_OUT').length} Active)
+          className={`pb-4 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 ${activeTab === 'logs' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+          <Clock size={16} /> Custody Logs 
+          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeCheckoutsCount > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'}`}>
+            {activeCheckoutsCount} Active
+          </span>
         </button>
       </div>
 
-      {/* Search and Filters */}
+      {/* Search and Filters Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <input 
-          type="text" 
-          placeholder="Search by equipment name or serial number..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-sm flex-1 focus:outline-none focus:border-blue-500 text-white"
-        />
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search by equipment name or serial number..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200 placeholder-slate-500 shadow-inner"
+          />
+        </div>
+        
         {activeTab === 'inventory' && (
-          <select 
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-            {categories.map((cat, idx) => (
-              <option key={idx} value={cat}>{cat.toUpperCase()}</option>
-            ))}
-          </select>
+          <div className="relative min-w-[200px]">
+            <Filter className="absolute left-3.5 top-3 text-slate-400" size={18} />
+            <select 
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-10 pr-8 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 appearance-none shadow-inner">
+              {categories.map((cat, idx) => (
+                <option key={idx} value={cat}>{cat.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
-      {/* Tab Content: Store Inventory */}
+      {/* Tab Content 1: Equipment Inventory Table */}
       {activeTab === 'inventory' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shadow">
+        <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl backdrop-blur-md">
           <table className="w-full text-left border-collapse text-sm">
-            <thead className="bg-slate-800 text-gray-400 uppercase text-xs">
+            <thead className="bg-slate-800/60 text-slate-400 uppercase text-xs tracking-wider">
               <tr>
-                <th className="p-4">Equipment Name</th>
-                <th className="p-4">Category</th>
-                <th className="p-4">Serial Number</th>
-                <th className="p-4">Available / Total</th>
-                <th className="p-4 text-right">Actions</th>
+                <th className="p-4.5">Equipment Name</th>
+                <th className="p-4.5">Category</th>
+                <th className="p-4.5">Serial Number</th>
+                <th className="p-4.5">Availability Status</th>
+                <th className="p-4.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/60">
               {filteredItems.length === 0 ? (
-                <tr><td colSpan="5" className="p-6 text-center text-gray-500">No store items found.</td></tr>
+                <tr>
+                  <td colSpan="5" className="p-8 text-center text-slate-500">
+                    No store inventory items match your search criteria.
+                  </td>
+                </tr>
               ) : (
                 filteredItems.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-800/50 transition">
-                    <td className="p-4 font-medium">{item.item_name}</td>
-                    <td className="p-4 text-gray-300">{item.category}</td>
-                    <td className="p-4 text-gray-400 font-mono text-xs">{item.serial_number || 'N/A'}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${item.available_units > 0 ? 'bg-green-900/60 text-green-300' : 'bg-red-900/60 text-red-300'}`}>
+                  <tr key={item.id} className="hover:bg-slate-800/30 transition">
+                    <td className="p-4.5 font-medium text-slate-200">{item.item_name}</td>
+                    <td className="p-4.5 text-slate-300">
+                      <span className="px-2.5 py-1 bg-slate-800 border border-slate-700/60 rounded-lg text-xs font-medium text-slate-300">
+                        {item.category}
+                      </span>
+                    </td>
+                    <td className="p-4.5 text-slate-400 font-mono text-xs">{item.serial_number || 'N/A'}</td>
+                    <td className="p-4.5">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${item.available_units > 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${item.available_units > 0 ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                         {item.available_units} / {item.total_units} Available
                       </span>
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="p-4.5 text-right">
                       <button 
                         disabled={item.available_units <= 0}
                         onClick={() => { setSelectedItem(item); setOpenCheckoutModal(true); }}
-                        className={`px-3 py-1.5 rounded text-xs font-medium transition ${item.available_units > 0 ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-slate-800 text-gray-500 cursor-not-allowed'}`}>
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm ${item.available_units > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
                         Check Out / Rent
                       </button>
                     </td>
@@ -193,40 +236,54 @@ export default function StorePage() {
         </div>
       )}
 
-      {/* Tab Content: Custody Logs */}
+      {/* Tab Content 2: Custody Logs Table */}
       {activeTab === 'logs' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shadow">
+        <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl backdrop-blur-md">
           <table className="w-full text-left border-collapse text-sm">
-            <thead className="bg-slate-800 text-gray-400 uppercase text-xs">
+            <thead className="bg-slate-800/60 text-slate-400 uppercase text-xs tracking-wider">
               <tr>
-                <th className="p-4">Equipment</th>
-                <th className="p-4">Borrower / Staff</th>
-                <th className="p-4">Checkout Condition</th>
-                <th className="p-4">Return Condition</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Action</th>
+                <th className="p-4.5">Equipment</th>
+                <th className="p-4.5">Borrower / Staff</th>
+                <th className="p-4.5">Checkout Condition</th>
+                <th className="p-4.5">Return Condition</th>
+                <th className="p-4.5">Status</th>
+                <th className="p-4.5 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/60">
               {storeLogs.length === 0 ? (
-                <tr><td colSpan="6" className="p-6 text-center text-gray-500">No custody history logs found.</td></tr>
+                <tr>
+                  <td colSpan="6" className="p-8 text-center text-slate-500">
+                    No custody or rental history logs found.
+                  </td>
+                </tr>
               ) : (
                 storeLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-800/50 transition">
-                    <td className="p-4 font-medium">{log.item_name} <span className="block text-xs text-gray-400 font-mono">{log.serial_number}</span></td>
-                    <td className="p-4">{log.borrower_name} <span className="block text-xs text-gray-400">{log.borrower_id_or_staff}</span></td>
-                    <td className="p-4 text-gray-300 max-w-xs truncate" title={log.checkout_condition}>{log.checkout_condition || 'No review'}</td>
-                    <td className="p-4 text-gray-300 max-w-xs truncate" title={log.return_condition}>{log.return_condition || 'Pending return'}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${log.status === 'CHECKED_OUT' ? 'bg-blue-900/60 text-blue-300' : 'bg-emerald-900/60 text-emerald-300'}`}>
+                  <tr key={log.id} className="hover:bg-slate-800/30 transition">
+                    <td className="p-4.5 font-medium text-slate-200">
+                      {log.item_name} 
+                      <span className="block text-xs text-slate-400 font-mono mt-0.5">{log.serial_number}</span>
+                    </td>
+                    <td className="p-4.5 text-slate-300">
+                      {log.borrower_name} 
+                      <span className="block text-xs text-slate-400 mt-0.5">{log.borrower_id_or_staff}</span>
+                    </td>
+                    <td className="p-4.5 text-slate-300 max-w-xs truncate" title={log.checkout_condition}>
+                      {log.checkout_condition || 'No review logged'}
+                    </td>
+                    <td className="p-4.5 text-slate-300 max-w-xs truncate" title={log.return_condition}>
+                      {log.return_condition || 'Pending return'}
+                    </td>
+                    <td className="p-4.5">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${log.status === 'CHECKED_OUT' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
                         {log.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="p-4.5 text-right">
                       {log.status === 'CHECKED_OUT' && (
                         <button 
                           onClick={() => { setSelectedLogId(log.id); setOpenReturnModal(true); }}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-medium transition">
+                          className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm">
                           Process Return
                         </button>
                       )}
@@ -239,84 +296,92 @@ export default function StorePage() {
         </div>
       )}
 
-      {/* Add Equipment Modal */}
+      {/* Modal: Add Equipment */}
       {openAddModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-bold mb-4">Add Physical Store Tool / Equipment</h2>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-bold mb-1 text-slate-100">Add Store Tool / Equipment</h2>
+            <p className="text-xs text-slate-400 mb-5">Register new physical assets into the G2G store directory.</p>
+            
             <form onSubmit={handleAddItem} className="space-y-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Equipment Name</label>
-                <input type="text" required value={newItem.item_name} onChange={e => setNewItem({...newItem, item_name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white" />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Equipment Name</label>
+                <input type="text" required value={newItem.item_name} onChange={e => setNewItem({...newItem, item_name: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g., Ultrasound Probe A" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Category</label>
-                <input type="text" required placeholder="e.g., Radiology Tools, IT Hardware, PPE" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white" />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category</label>
+                <input type="text" required placeholder="e.g., Radiology Tools, IT Hardware" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Serial Number / Asset Tag</label>
-                <input type="text" value={newItem.serial_number} onChange={e => setNewItem({...newItem, serial_number: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white font-mono" />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Serial Number / Asset Tag</label>
+                <input type="text" value={newItem.serial_number} onChange={e => setNewItem({...newItem, serial_number: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 font-mono focus:outline-none focus:border-blue-500" placeholder="e.g., SN-99823-X" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Total Units</label>
-                <input type="number" min="1" required value={newItem.total_units} onChange={e => setNewItem({...newItem, total_units: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white" />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Total Units</label>
+                <input type="number" min="1" required value={newItem.total_units} onChange={e => setNewItem({...newItem, total_units: parseInt(e.target.value)})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" />
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setOpenAddModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium">Save Equipment</button>
+              
+              <div className="flex justify-end gap-3 pt-3">
+                <button type="button" onClick={() => setOpenAddModal(false)} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition text-slate-300">Cancel</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold transition text-white shadow-lg shadow-blue-600/20">Save Equipment</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Checkout Modal */}
+      {/* Modal: Checkout */}
       {openCheckoutModal && selectedItem && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-bold mb-1">Check Out: {selectedItem.item_name}</h2>
-            <p className="text-xs text-gray-400 mb-4">Record borrower details and initial condition review.</p>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-bold mb-1 text-slate-100">Check Out: {selectedItem.item_name}</h2>
+            <p className="text-xs text-slate-400 mb-5">Record borrower credentials and mandatory condition review.</p>
+            
             <form onSubmit={handleCheckout} className="space-y-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Borrower / Staff Name</label>
-                <input type="text" required value={checkoutData.borrower_name} onChange={e => setCheckoutData({...checkoutData, borrower_name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white" />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Borrower / Staff Name</label>
+                <input type="text" required value={checkoutData.borrower_name} onChange={e => setCheckoutData({...checkoutData, borrower_name: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" placeholder="Full name" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Staff ID / Department</label>
-                <input type="text" value={checkoutData.borrower_id_or_staff} onChange={e => setCheckoutData({...checkoutData, borrower_id_or_staff: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white" />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Staff ID / Department</label>
+                <input type="text" value={checkoutData.borrower_id_or_staff} onChange={e => setCheckoutData({...checkoutData, borrower_id_or_staff: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g., G2G-ENG-042" />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Initial Condition Review (Detailed notes)</label>
-                <textarea required rows="3" placeholder="e.g., Brand new unit, intact casing, includes battery charger and carry pouch..." value={checkoutData.checkout_condition} onChange={e => setCheckoutData({...checkoutData, checkout_condition: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white"></textarea>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Initial Condition Review Notes</label>
+                <textarea required rows="3" placeholder="e.g., Pristine condition, tested casing, includes power cable..." value={checkoutData.checkout_condition} onChange={e => setCheckoutData({...checkoutData, checkout_condition: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 resize-none"></textarea>
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setOpenCheckoutModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded text-sm font-medium">Confirm Checkout</button>
+              
+              <div className="flex justify-end gap-3 pt-3">
+                <button type="button" onClick={() => setOpenCheckoutModal(false)} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition text-slate-300">Cancel</button>
+                <button type="submit" className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-xl text-sm font-semibold transition text-white shadow-lg shadow-amber-600/20">Confirm Checkout</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Return Modal */}
+      {/* Modal: Return */}
       {openReturnModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-bold mb-1">Process Equipment Return</h2>
-            <p className="text-xs text-gray-400 mb-4">Provide condition review upon return to audit wear or damage.</p>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-bold mb-1 text-slate-100">Process Equipment Return</h2>
+            <p className="text-xs text-slate-400 mb-5">Audit physical status and log return conditions.</p>
+            
             <form onSubmit={handleReturn} className="space-y-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Return Condition Review (Detailed notes)</label>
-                <textarea required rows="3" placeholder="e.g., Returned in good working order, minor scratch on surface display..." value={returnData.return_condition} onChange={e => setReturnData({...returnData, return_condition: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white"></textarea>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Return Condition Review Notes</label>
+                <textarea required rows="3" placeholder="e.g., Returned fully functional, normal wear on casing..." value={returnData.return_condition} onChange={e => setReturnData({...returnData, return_condition: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 resize-none"></textarea>
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setOpenReturnModal(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-sm font-medium">Complete Return</button>
+              
+              <div className="flex justify-end gap-3 pt-3">
+                <button type="button" onClick={() => setOpenReturnModal(false)} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition text-slate-300">Cancel</button>
+                <button type="submit" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold transition text-white shadow-lg shadow-emerald-600/20">Complete Return</button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 }

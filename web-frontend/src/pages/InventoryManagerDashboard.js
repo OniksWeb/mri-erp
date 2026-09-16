@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext'; // ✅ Import your auth hook
 
 export default function InventoryManagerDashboard() {
+  const { user } = useAuth(); // ✅ Get the current logged-in user
+  const isInventoryAdmin = user?.role === 'inventory_admin';
+
   const [inventoryItems, setInventoryItems] = useState([]);
   const [storeItems, setStoreItems] = useState([]);
   const [activeTab, setActiveTab] = useState('inbound'); // 'inbound' or 'store'
@@ -21,15 +25,21 @@ export default function InventoryManagerDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [invRes, storeRes] = await Promise.all([
-        api.get('/api/inventory'),
-        api.get('/api/store/items')
-      ]);
-      setInventoryItems(invRes.data || []);
-      setStoreItems(storeRes.data || []);
+      // ✅ If they are an inventory admin, only fetch inbound inventory to avoid 403 errors on the store endpoint
+      if (isInventoryAdmin) {
+        const invRes = await api.get('/api/inventory');
+        setInventoryItems(invRes.data || []);
+      } else {
+        const [invRes, storeRes] = await Promise.all([
+          api.get('/api/inventory'),
+          api.get('/api/store/items')
+        ]);
+        setInventoryItems(invRes.data || []);
+        setStoreItems(storeRes.data || []);
+      }
     } catch (err) {
-      console.error('Error loading inventory data:', err);
-      setError('Failed to load dashboard inventory data.');
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data.');
     }
   };
 
@@ -41,51 +51,65 @@ export default function InventoryManagerDashboard() {
     return matchesSearch && matchesCategory;
   });
 
-  // Filter Logic for Store Equipment
-  const filteredStore = storeItems.filter(item => {
+  // Filter Logic for Store Equipment (Only calculated if allowed)
+  const filteredStore = !isInventoryAdmin ? storeItems.filter(item => {
     const matchesSearch = item.item_name?.toLowerCase().includes(storeSearch.toLowerCase()) ||
                           item.serial_number?.toLowerCase().includes(storeSearch.toLowerCase());
     const matchesCategory = storeCategoryFilter === 'ALL' || item.category === storeCategoryFilter;
     return matchesSearch && matchesCategory;
-  });
+  }) : [];
 
   const inboundCategories = ['ALL', ...new Set(inventoryItems.map(i => i.category))];
-  const storeCategories = ['ALL', ...new Set(storeItems.map(i => i.category))];
+  const storeCategories = !isInventoryAdmin ? ['ALL', ...new Set(storeItems.map(i => i.category))] : [];
 
   return (
     <div className="p-6 bg-[#0f172a] min-h-screen text-white">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Inventory Manager Control Center</h1>
-          <p className="text-gray-400 text-sm">Overseeing inbound logistics, stock levels, and physical store custody tracking.</p>
+          <h1 className="text-2xl font-bold">
+            {isInventoryAdmin ? 'Inventory Admin Control Center' : 'Inventory Manager Control Center'}
+          </h1>
+          <p className="text-gray-400 text-sm">
+            {isInventoryAdmin 
+              ? 'Overseeing inbound logistics, stock levels, and consumable inventory items.' 
+              : 'Overseeing inbound logistics, stock levels, and physical store custody tracking.'}
+          </p>
         </div>
-        <div className="flex gap-2 bg-slate-900 p-1 rounded border border-slate-800">
-          <button 
-            onClick={() => setActiveTab('inbound')}
-            className={`px-4 py-2 rounded text-xs font-medium transition ${activeTab === 'inbound' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-            Inbound Inventory ({inventoryItems.length})
-          </button>
-          <button 
-            onClick={() => setActiveTab('store')}
-            className={`px-4 py-2 rounded text-xs font-medium transition ${activeTab === 'store' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-            Physical Store Assets ({storeItems.length})
-          </button>
-        </div>
+
+        {/* Tab Switcher - Hidden for Inventory Admin */}
+        {!isInventoryAdmin && (
+          <div className="flex gap-2 bg-slate-900 p-1 rounded border border-slate-800">
+            <button 
+              onClick={() => setActiveTab('inbound')}
+              className={`px-4 py-2 rounded text-xs font-medium transition ${activeTab === 'inbound' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+              Inbound Inventory ({inventoryItems.length})
+            </button>
+            <button 
+              onClick={() => setActiveTab('store')}
+              className={`px-4 py-2 rounded text-xs font-medium transition ${activeTab === 'store' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+              Physical Store Assets ({storeItems.length})
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-200 text-sm">{error}</div>}
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Metrics Row - Dynamically adjusted based on role */}
+      <div className={`grid grid-cols-1 ${isInventoryAdmin ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 mb-6`}>
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg">
           <p className="text-xs text-gray-400 uppercase font-medium">Total Inbound Line Items</p>
           <h3 className="text-2xl font-bold mt-1 text-blue-400">{inventoryItems.length}</h3>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg">
-          <p className="text-xs text-gray-400 uppercase font-medium">Tracked Store Equipment</p>
-          <h3 className="text-2xl font-bold mt-1 text-emerald-400">{storeItems.length}</h3>
-        </div>
+
+        {!isInventoryAdmin && (
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg">
+            <p className="text-xs text-gray-400 uppercase font-medium">Tracked Store Equipment</p>
+            <h3 className="text-2xl font-bold mt-1 text-emerald-400">{storeItems.length}</h3>
+          </div>
+        )}
+
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-lg">
           <p className="text-xs text-gray-400 uppercase font-medium">Low Stock / Attention Needed</p>
           <h3 className="text-2xl font-bold mt-1 text-amber-400">
@@ -94,10 +118,9 @@ export default function InventoryManagerDashboard() {
         </div>
       </div>
 
-      {/* TAB 1: INBOUND INVENTORY MANAGEMENT */}
-      {activeTab === 'inbound' && (
+      {/* INBOUND INVENTORY SECTION (Always shown to Inventory Admin, or when tab is active for managers) */}
+      {(isInventoryAdmin || activeTab === 'inbound') && (
         <div className="space-y-4">
-          {/* Search & Filter Toolbar */}
           <div className="flex flex-col md:flex-row gap-3">
             <input 
               type="text"
@@ -116,7 +139,6 @@ export default function InventoryManagerDashboard() {
             </select>
           </div>
 
-          {/* Table */}
           <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shadow">
             <table className="w-full text-left border-collapse text-sm">
               <thead className="bg-slate-800 text-gray-400 uppercase text-xs">
@@ -148,10 +170,9 @@ export default function InventoryManagerDashboard() {
         </div>
       )}
 
-      {/* TAB 2: STORE EQUIPMENT MANAGEMENT */}
-      {activeTab === 'store' && (
+      {/* STORE EQUIPMENT SECTION (Restricted: only shown if NOT an inventory admin and store tab is active) */}
+      {!isInventoryAdmin && activeTab === 'store' && (
         <div className="space-y-4">
-          {/* Search & Filter Toolbar */}
           <div className="flex flex-col md:flex-row gap-3">
             <input 
               type="text"
@@ -170,7 +191,6 @@ export default function InventoryManagerDashboard() {
             </select>
           </div>
 
-          {/* Table */}
           <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shadow">
             <table className="w-full text-left border-collapse text-sm">
               <thead className="bg-slate-800 text-gray-400 uppercase text-xs">

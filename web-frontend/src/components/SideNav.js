@@ -44,7 +44,7 @@ import ExpandMore from '@mui/icons-material/ExpandMore';
 import UploadFileIcon from '@mui/icons-material/UploadFile'; 
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn'; 
 import InventoryIcon from '@mui/icons-material/Inventory'; // ✅ NEW: Store Inventory Icon
-
+import StoreIcon from '@mui/icons-material/Store'; // ✅ Add this import
 
 // --- Constants for Drawer Width ---
 const drawerWidth = 240; 
@@ -131,7 +131,10 @@ function SideNav({ open, onToggle }) {
     { text: 'Results Dashboard', icon: <AssignmentTurnedInIcon />, path: '/results/dashboard', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] }, 
     
     // ✅ NEW: Store Inventory (Strictly locked to Admin & Inventory Manager)
-    { text: 'Store Inventory', icon: <InventoryIcon />, path: '/inventory', roles: ['admin', 'inventory_manager'] },
+    { text: 'Store Inventory', icon: <InventoryIcon />, path: '/inventory', roles: ['admin', 'inventory_manager', 'inventory_admin'] },
+
+    // 🏢 Physical Equipment Store (Strictly restricted: NO inventory_admin allowed)
+    { text: 'Physical Store', icon: <StoreIcon />, path: '/store', roles: ['admin', 'inventory_manager'] },
 
     { text: 'Submit Query', icon: <SendIcon />, path: '/queries/submit', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
     { text: 'My Queries', icon: <FormatListNumberedIcon />, path: '/queries/my', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
