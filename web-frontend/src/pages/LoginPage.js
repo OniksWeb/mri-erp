@@ -30,7 +30,6 @@ function LoginPage() {
     setLoading(true); 
 
     try {
-      // Ensure your .env file has the correct REACT_APP_API_URL
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/login`, {
         method: 'POST',
         headers: {
@@ -42,12 +41,14 @@ function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Now 'data.user' contains: id, full_name, role, location_id, location_name, is_hq
-        // We pass this entire object to your context
         login(data.user, data.token);
         
-        // The AuthContext should handle the navigation to the dashboard
-        // based on the user's role/location.
+        // Explicit role-based navigation
+        if (data.user.role === 'inventory_manager') {
+          navigate('/InventoryManagerDashboard');
+        } else {
+          navigate('/DashboardPage');
+        }
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');
       }

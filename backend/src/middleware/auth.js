@@ -1,12 +1,13 @@
 // backend/src/middleware/auth.js
 import jwt from "jsonwebtoken";
+import pool from "../config/db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error("CRITICAL: JWT_SECRET is not defined in .env! Authentication will fail.");
 }
 
-export function auth(req, res, next) {
+export async function auth(req, res, next) {
   const authHeader = req.header("Authorization");
 
   if (!authHeader) {
@@ -22,13 +23,27 @@ export function auth(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // ✅ UPDATED: Now capturing location_id and is_hq
+    let resolvedLocationId = decoded.location_id;
+
+    // If the user is flagged as Headquarters (is_hq) or is an admin, 
+    // dynamically resolve/ensure they map to the main Company Headquarters location ID from the database
+    if (decoded.is_hq || decoded.role === 'admin') {
+      try {
+        const hqResult = await pool.query("SELECT id FROM locations WHERE is_hq = true LIMIT 1");
+        if (hqResult.rows.length > 0) {
+          resolvedLocationId = hqResult.rows[0].id;
+        }
+      } catch (dbErr) {
+        console.error("Error resolving HQ location in auth middleware:", dbErr.message);
+      }
+    }
+
     req.user = {
       id: decoded.id,
       username: decoded.username,
       role: decoded.role,
-      location_id: decoded.location_id, // 👈 CRITICAL: This was missing!
-      is_hq: decoded.is_hq,             // 👈 CRITICAL: This was missing!
+      location_id: resolvedLocationId, // 👈 Synchronized to Company Headquarters if HQ/Admin
+      is_hq: decoded.is_hq,            
       can_download: decoded.can_download ?? false 
     };
 

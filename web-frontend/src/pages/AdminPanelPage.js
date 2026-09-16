@@ -336,6 +336,7 @@ function AdminPanelPage() {
                             <MenuItem value="hq_financial_admin">HQ Financial Admin</MenuItem>
                             <MenuItem value="financial_admin">Financial Admin</MenuItem>
                             <MenuItem value="inventory_manager">Inventory Manager</MenuItem>
+                            <MenuItem value="inventory_admin">Inventory Admin</MenuItem>
                         </Select>
                     </FormControl>
                 </Stack>
