@@ -45,9 +45,9 @@ function LoginPage() {
         
         // Explicit role-based navigation
         if (data.user.role === 'inventory_manager') {
-          navigate('/InventoryManagerDashboard');
+          navigate('/store');
         } else {
-          navigate('/DashboardPage');
+          navigate('/dashboard');
         }
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');
