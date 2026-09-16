@@ -1,19 +1,24 @@
 // web-frontend/src/pages/StorePage.js
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, Wrench, ArrowUpRight, ArrowDownLeft, Search, 
-  Filter, Plus, ShieldCheck, AlertCircle, Clock, CheckCircle2 
-} from 'lucide-react';
+import {
+  Box, Container, Typography, Grid, Paper, Button, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog,
+  DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select,
+  FormControl, InputLabel, Tabs, Tab, Alert, Card, CardContent, Chip
+} from '@mui/material';
+import { Package as StoreIcon, Clock as ClockIcon, Plus as AddIcon, ArrowUpRight as CheckoutIcon, ArrowDownLeft as ReturnIcon } from 'lucide-react';
 import api from '../services/api';
 
-export default function StorePage() {
+const StorePage = () => {
+  const [tabIndex, setTabIndex] = useState(0); // 0: Store Inventory, 1: Custody Logs
   const [storeItems, setStoreItems] = useState([]);
   const [storeLogs, setStoreLogs] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'logs'
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   // Dialog States
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -102,286 +107,259 @@ export default function StorePage() {
 
   const categories = ['ALL', ...new Set(storeItems.map(i => i.category))];
   const activeCheckoutsCount = storeLogs.filter(l => l.status === 'CHECKED_OUT').length;
+  const totalStoreUnits = storeItems.reduce((acc, curr) => acc + Number(curr.total_units || 0), 0);
+  const availableStoreUnits = storeItems.reduce((acc, curr) => acc + Number(curr.available_units || 0), 0);
 
   return (
-    <div className="p-8 bg-[#0b1329] min-h-screen text-slate-100">
-      
-      {/* Top Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30">
-              <Package size={22} />
-            </span>
-            <h1 className="text-2xl font-extrabold tracking-tight">Physical Store & Equipment Custody</h1>
-          </div>
-          <p className="text-slate-400 text-sm">Track physical tools, equipment deployments, condition audits, and active checkouts.</p>
-        </div>
-        
-        <button 
-          onClick={() => setOpenAddModal(true)} 
-          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-blue-500/20 transition duration-200">
-          <Plus size={18} /> Add Equipment
-        </button>
-      </div>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" fontWeight="bold">🏢 G2G Medical Store & Equipment Custody</Typography>
+        <Box>
+          <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
+            + Add Store Equipment
+          </Button>
+        </Box>
+      </Box>
 
-      {/* Notifications Alerts */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-950/60 border border-red-500/50 rounded-xl text-red-200 text-sm flex items-center gap-3 backdrop-blur-md">
-          <AlertCircle size={18} className="text-red-400 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="mb-6 p-4 bg-emerald-950/60 border border-emerald-500/50 rounded-xl text-emerald-200 text-sm flex items-center gap-3 backdrop-blur-md">
-          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex border-b border-slate-800 gap-6 mb-6">
-        <button 
-          onClick={() => setActiveTab('inventory')}
-          className={`pb-4 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 ${activeTab === 'inventory' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
-          <Package size={16} /> Store Equipment Inventory ({storeItems.length})
-        </button>
-        <button 
-          onClick={() => setActiveTab('logs')}
-          className={`pb-4 px-2 font-semibold text-sm border-b-2 transition flex items-center gap-2 ${activeTab === 'logs' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
-          <Clock size={16} /> Custody Logs 
-          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeCheckoutsCount > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'}`}>
-            {activeCheckoutsCount} Active
-          </span>
-        </button>
-      </div>
+      {/* Summary KPI Cards */}
+      <Grid container spacing={3} mb={4}>
+        <Grid item xs={12} sm={4}>
+          <Card elevation={3}>
+            <CardContent>
+              <Typography color="textSecondary">Total Asset Types</Typography>
+              <Typography variant="h4" fontWeight="bold">{storeItems.length}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card elevation={3} sx={{ borderLeft: '6px solid #2e7d32' }}>
+            <CardContent>
+              <Typography color="textSecondary">Available Units / Total</Typography>
+              <Typography variant="h4" fontWeight="bold" color="success.main">
+                {availableStoreUnits} / {totalStoreUnits}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card elevation={3} sx={{ borderLeft: '6px solid #ed6c02' }}>
+            <CardContent>
+              <Typography color="textSecondary">Active Checkouts / Loans</Typography>
+              <Typography variant="h4" fontWeight="bold" color="warning.main">
+                {activeCheckoutsCount}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-      {/* Search and Filters Bar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by equipment name or serial number..." 
+      {/* Tabs Layout */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)} indicatorColor="primary" textColor="primary" centered>
+          <Tab icon={<StoreIcon size={20} />} label="Store Equipment Inventory" />
+          <Tab icon={<ClockIcon size={20} />} label={`Custody & Rental Logs (${activeCheckoutsCount} Active)`} />
+        </Tabs>
+      </Paper>
+
+      {/* Common Search & Filter Toolbar */}
+      {tabIndex === 0 && (
+        <Box display="flex" gap={2} mb={3} flexDirection={{ xs: 'column', sm: 'row' }}>
+          <TextField
+            label="Search by equipment name or serial number..."
+            variant="outlined"
+            size="small"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200 placeholder-slate-500 shadow-inner"
+            sx={{ flexGrow: 1, backgroundColor: 'background.paper' }}
           />
-        </div>
-        
-        {activeTab === 'inventory' && (
-          <div className="relative min-w-[200px]">
-            <Filter className="absolute left-3.5 top-3 text-slate-400" size={18} />
-            <select 
+          <FormControl size="small" sx={{ minWidth: 200, backgroundColor: 'background.paper' }}>
+            <InputLabel>Filter Category</InputLabel>
+            <Select
               value={categoryFilter}
+              label="Filter Category"
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-10 pr-8 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 appearance-none shadow-inner">
+            >
               {categories.map((cat, idx) => (
-                <option key={idx} value={cat}>{cat.toUpperCase()}</option>
+                <MenuItem key={idx} value={cat}>{cat.toUpperCase()}</MenuItem>
               ))}
-            </select>
-          </div>
-        )}
-      </div>
+            </Select>
+          </FormControl>
+        </Box>
+      )}
 
-      {/* Tab Content 1: Equipment Inventory Table */}
-      {activeTab === 'inventory' && (
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl backdrop-blur-md">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead className="bg-slate-800/60 text-slate-400 uppercase text-xs tracking-wider">
-              <tr>
-                <th className="p-4.5">Equipment Name</th>
-                <th className="p-4.5">Category</th>
-                <th className="p-4.5">Serial Number</th>
-                <th className="p-4.5">Availability Status</th>
-                <th className="p-4.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
+      {/* TAB 0: Store Equipment Inventory Table */}
+      {tabIndex === 0 && (
+        <TableContainer component={Paper} elevation={3}>
+          <Table>
+            <TableHead sx={{ backgroundColor: 'action.hover' }}>
+              <TableRow>
+                <TableCell><b>Equipment Name</b></TableCell>
+                <TableCell><b>Category</b></TableCell>
+                <TableCell><b>Serial Number</b></TableCell>
+                <TableCell><b>Availability Status</b></TableCell>
+                <TableCell align="right"><b>Actions</b></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="p-8 text-center text-slate-500">
-                    No store inventory items match your search criteria.
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    No store items found matching your criteria.
+                  </TableCell>
+                </TableRow>
               ) : (
-                filteredItems.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-800/30 transition">
-                    <td className="p-4.5 font-medium text-slate-200">{item.item_name}</td>
-                    <td className="p-4.5 text-slate-300">
-                      <span className="px-2.5 py-1 bg-slate-800 border border-slate-700/60 rounded-lg text-xs font-medium text-slate-300">
-                        {item.category}
-                      </span>
-                    </td>
-                    <td className="p-4.5 text-slate-400 font-mono text-xs">{item.serial_number || 'N/A'}</td>
-                    <td className="p-4.5">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${item.available_units > 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${item.available_units > 0 ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-                        {item.available_units} / {item.total_units} Available
-                      </span>
-                    </td>
-                    <td className="p-4.5 text-right">
-                      <button 
+                filteredItems.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell sx={{ fontWeight: 'medium' }}>{item.item_name}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{item.serial_number || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={`${item.available_units} / ${item.total_units} Available`} 
+                        color={item.available_units > 0 ? 'success' : 'error'} 
+                        size="small" 
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="warning"
                         disabled={item.available_units <= 0}
                         onClick={() => { setSelectedItem(item); setOpenCheckoutModal(true); }}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm ${item.available_units > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
+                      >
                         Check Out / Rent
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      {/* Tab Content 2: Custody Logs Table */}
-      {activeTab === 'logs' && (
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl backdrop-blur-md">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead className="bg-slate-800/60 text-slate-400 uppercase text-xs tracking-wider">
-              <tr>
-                <th className="p-4.5">Equipment</th>
-                <th className="p-4.5">Borrower / Staff</th>
-                <th className="p-4.5">Checkout Condition</th>
-                <th className="p-4.5">Return Condition</th>
-                <th className="p-4.5">Status</th>
-                <th className="p-4.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
+      {/* TAB 1: Custody Logs Table */}
+      {tabIndex === 1 && (
+        <TableContainer component={Paper} elevation={3}>
+          <Table>
+            <TableHead sx={{ backgroundColor: 'action.hover' }}>
+              <TableRow>
+                <TableCell><b>Equipment</b></TableCell>
+                <TableCell><b>Borrower / Staff</b></TableCell>
+                <TableCell><b>Checkout Condition</b></TableCell>
+                <TableCell><b>Return Condition</b></TableCell>
+                <TableCell><b>Status</b></TableCell>
+                <TableCell align="right"><b>Action</b></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {storeLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="p-8 text-center text-slate-500">
-                    No custody or rental history logs found.
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    No custody history logs found.
+                  </TableCell>
+                </TableRow>
               ) : (
-                storeLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-800/30 transition">
-                    <td className="p-4.5 font-medium text-slate-200">
-                      {log.item_name} 
-                      <span className="block text-xs text-slate-400 font-mono mt-0.5">{log.serial_number}</span>
-                    </td>
-                    <td className="p-4.5 text-slate-300">
-                      {log.borrower_name} 
-                      <span className="block text-xs text-slate-400 mt-0.5">{log.borrower_id_or_staff}</span>
-                    </td>
-                    <td className="p-4.5 text-slate-300 max-w-xs truncate" title={log.checkout_condition}>
+                storeLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell>
+                      {log.item_name}
+                      <Typography variant="caption" display="block" color="textSecondary" sx={{ fontFamily: 'monospace' }}>
+                        {log.serial_number}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {log.borrower_name}
+                      <Typography variant="caption" display="block" color="textSecondary">
+                        {log.borrower_id_or_staff}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {log.checkout_condition || 'No review logged'}
-                    </td>
-                    <td className="p-4.5 text-slate-300 max-w-xs truncate" title={log.return_condition}>
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {log.return_condition || 'Pending return'}
-                    </td>
-                    <td className="p-4.5">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${log.status === 'CHECKED_OUT' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="p-4.5 text-right">
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={log.status} 
+                        color={log.status === 'CHECKED_OUT' ? 'primary' : 'success'} 
+                        size="small" 
+                      />
+                    </TableCell>
+                    <TableCell align="right">
                       {log.status === 'CHECKED_OUT' && (
-                        <button 
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="success"
                           onClick={() => { setSelectedLogId(log.id); setOpenReturnModal(true); }}
-                          className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm">
+                        >
                           Process Return
-                        </button>
+                        </Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      {/* Modal: Add Equipment */}
-      {openAddModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-bold mb-1 text-slate-100">Add Store Tool / Equipment</h2>
-            <p className="text-xs text-slate-400 mb-5">Register new physical assets into the G2G store directory.</p>
-            
-            <form onSubmit={handleAddItem} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Equipment Name</label>
-                <input type="text" required value={newItem.item_name} onChange={e => setNewItem({...newItem, item_name: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g., Ultrasound Probe A" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category</label>
-                <input type="text" required placeholder="e.g., Radiology Tools, IT Hardware" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Serial Number / Asset Tag</label>
-                <input type="text" value={newItem.serial_number} onChange={e => setNewItem({...newItem, serial_number: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 font-mono focus:outline-none focus:border-blue-500" placeholder="e.g., SN-99823-X" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Total Units</label>
-                <input type="number" min="1" required value={newItem.total_units} onChange={e => setNewItem({...newItem, total_units: parseInt(e.target.value)})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" />
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setOpenAddModal(false)} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition text-slate-300">Cancel</button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold transition text-white shadow-lg shadow-blue-600/20">Save Equipment</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Dialog: Add Store Equipment */}
+      <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Physical Store Tool / Equipment</DialogTitle>
+        <form onSubmit={handleAddItem}>
+          <DialogContent>
+            <TextField fullWidth label="Equipment Name" margin="normal" required value={newItem.item_name} onChange={e => setNewItem({...newItem, item_name: e.target.value})} />
+            <TextField fullWidth label="Category" margin="normal" required placeholder="e.g., Radiology Tools, IT Hardware" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} />
+            <TextField fullWidth label="Serial Number / Asset Tag" margin="normal" value={newItem.serial_number} onChange={e => setNewItem({...newItem, serial_number: e.target.value})} />
+            <TextField fullWidth label="Total Units" type="number" margin="normal" inputProps={{ min: 1 }} required value={newItem.total_units} onChange={e => setNewItem({...newItem, total_units: parseInt(e.target.value)})} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>
+            <Button type="submit" variant="contained">Save Equipment</Button>
+          </DialogActions>
+        </form>
+      </Dialog>
 
-      {/* Modal: Checkout */}
-      {openCheckoutModal && selectedItem && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-bold mb-1 text-slate-100">Check Out: {selectedItem.item_name}</h2>
-            <p className="text-xs text-slate-400 mb-5">Record borrower credentials and mandatory condition review.</p>
-            
-            <form onSubmit={handleCheckout} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Borrower / Staff Name</label>
-                <input type="text" required value={checkoutData.borrower_name} onChange={e => setCheckoutData({...checkoutData, borrower_name: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" placeholder="Full name" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Staff ID / Department</label>
-                <input type="text" value={checkoutData.borrower_id_or_staff} onChange={e => setCheckoutData({...checkoutData, borrower_id_or_staff: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500" placeholder="e.g., G2G-ENG-042" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Initial Condition Review Notes</label>
-                <textarea required rows="3" placeholder="e.g., Pristine condition, tested casing, includes power cable..." value={checkoutData.checkout_condition} onChange={e => setCheckoutData({...checkoutData, checkout_condition: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 resize-none"></textarea>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setOpenCheckoutModal(false)} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition text-slate-300">Cancel</button>
-                <button type="submit" className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 rounded-xl text-sm font-semibold transition text-white shadow-lg shadow-amber-600/20">Confirm Checkout</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Dialog: Checkout / Rent Equipment */}
+      <Dialog open={openCheckoutModal} onClose={() => setOpenCheckoutModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Check Out: {selectedItem?.item_name}</DialogTitle>
+        <form onSubmit={handleCheckout}>
+          <DialogContent>
+            <TextField fullWidth label="Borrower / Staff Name" margin="normal" required value={checkoutData.borrower_name} onChange={e => setCheckoutData({...checkoutData, borrower_name: e.target.value})} />
+            <TextField fullWidth label="Staff ID / Department" margin="normal" value={checkoutData.borrower_id_or_staff} onChange={e => setCheckoutData({...checkoutData, borrower_id_or_staff: e.target.value})} />
+            <TextField fullWidth label="Initial Condition Review Notes" multiline rows={3} margin="normal" required placeholder="e.g., Pristine condition, includes power cable..." value={checkoutData.checkout_condition} onChange={e => setCheckoutData({...checkoutData, checkout_condition: e.target.value})} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenCheckoutModal(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" color="warning">Confirm Checkout</Button>
+          </DialogActions>
+        </form>
+      </Dialog>
 
-      {/* Modal: Return */}
-      {openReturnModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-bold mb-1 text-slate-100">Process Equipment Return</h2>
-            <p className="text-xs text-slate-400 mb-5">Audit physical status and log return conditions.</p>
-            
-            <form onSubmit={handleReturn} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Return Condition Review Notes</label>
-                <textarea required rows="3" placeholder="e.g., Returned fully functional, normal wear on casing..." value={returnData.return_condition} onChange={e => setReturnData({...returnData, return_condition: e.target.value})} className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 resize-none"></textarea>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setOpenReturnModal(false)} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition text-slate-300">Cancel</button>
-                <button type="submit" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-semibold transition text-white shadow-lg shadow-emerald-600/20">Complete Return</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-    </div>
+      {/* Dialog: Process Return */}
+      <Dialog open={openReturnModal} onClose={() => setOpenReturnModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Process Equipment Return</DialogTitle>
+        <form onSubmit={handleReturn}>
+          <DialogContent>
+            <TextField fullWidth label="Return Condition Review Notes" multiline rows={3} margin="normal" required placeholder="e.g., Returned fully functional, normal wear..." value={returnData.return_condition} onChange={e => setReturnData({...returnData, return_condition: e.target.value})} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenReturnModal(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" color="success">Complete Return</Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </Container>
   );
-}
+};
+
+export default StorePage;

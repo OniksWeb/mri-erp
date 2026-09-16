@@ -1,6 +1,6 @@
 {
   "name": "mri-erp-app",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "An ERP application for managing MRI patient inventory.",
   "author": "OniksWeb",
   "main": "electron-main/electron.js",
