@@ -126,11 +126,14 @@ function SideNav({ open, onToggle }) {
 
   // --- Menu Items Configuration ---
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin', 'inventory_manager'] },
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
     { text: 'Patients', icon: <PeopleIcon />, path: '/patients', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
     { text: 'Add Patient', icon: <AddCircleOutlineIcon />, path: '/patients/add', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
     { text: 'Results Dashboard', icon: <AssignmentTurnedInIcon />, path: '/results/dashboard', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] }, 
     
+    // 📊 Custom Inventory Control Center Dashboard
+    { text: 'Inventory Dashboard', icon: <AssessmentIcon />, path: '/inventory-manager/dashboard', roles: ['admin', 'inventory_manager', 'inventory_admin'] },
+
     // ✅ NEW: Store Inventory (Strictly locked to Admin & Inventory Manager)
     { text: 'Store Inventory', icon: <InventoryIcon />, path: '/inventory', roles: ['admin', 'inventory_manager', 'inventory_admin'] },
 
@@ -138,9 +141,6 @@ function SideNav({ open, onToggle }) {
     { text: 'Physical Store', icon: <StoreIcon />, path: '/store', roles: ['admin', 'inventory_manager'] },
 
 
-    // 📊 Custom Inventory Control Center Dashboard
-    { text: 'Inventory Dashboard', icon: <AssessmentIcon />, path: '/inventory-manager/dashboard', roles: ['admin', 'inventory_manager', 'inventory_admin'] },
-    
     { text: 'Submit Query', icon: <SendIcon />, path: '/queries/submit', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
     { text: 'My Queries', icon: <FormatListNumberedIcon />, path: '/queries/my', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'] },
     { text: 'Chat', icon: <ChatIcon />, path: '/chat', roles: ['medical_staff', 'admin', 'doctor', 'financial_admin'], disabled: true },

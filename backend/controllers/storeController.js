@@ -12,6 +12,27 @@ export const getStoreItems = async (req, res) => {
     }
 };
 
+// Add this inside storeController.js
+export const deleteStoreItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if item exists
+    const checkResult = await pool.query('SELECT * FROM store_items WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Store equipment not found' });
+    }
+
+    // Execute deletion
+    await pool.query('DELETE FROM store_items WHERE id = $1', [id]);
+    
+    res.status(200).json({ message: 'Store equipment deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting store item:', err);
+    res.status(500).json({ message: 'Server error while deleting store item' });
+  }
+};
+
 // Add a new physical tool or equipment to the store
 export const addStoreItem = async (req, res) => {
     const { item_name, category, serial_number, total_units } = req.body;

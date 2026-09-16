@@ -7,6 +7,7 @@ import {
   FormControl, InputLabel, Tabs, Tab, Alert, Card, CardContent, Chip
 } from '@mui/material';
 import { Package as StoreIcon, Clock as ClockIcon, Plus as AddIcon, ArrowUpRight as CheckoutIcon, ArrowDownLeft as ReturnIcon } from 'lucide-react';
+import DeleteIcon from '@mui/icons-material/Delete'; // ✅ Added Delete Icon
 import api from '../services/api';
 
 const StorePage = () => {
@@ -62,6 +63,20 @@ const StorePage = () => {
       fetchStoreData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add store item.');
+    }
+  };
+
+  // ✅ Delete Handler for Store Items
+  const handleDeleteStoreItem = async (itemId) => {
+    if (!window.confirm('Are you sure you want to delete this store equipment?')) return;
+    try {
+      await api.delete(`/api/store/items/${itemId}`);
+      setSuccess('Store equipment deleted successfully.');
+      // Remove item locally from state so the table updates instantly
+      setStoreItems(prev => prev.filter(item => item.id !== itemId));
+    } catch (err) {
+      console.error('Failed to delete store item:', err);
+      setError(err.response?.data?.message || 'Failed to delete store item.');
     }
   };
 
@@ -225,15 +240,25 @@ const StorePage = () => {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Button
-                        variant="contained"
-                        size="small"
-                        color="warning"
-                        disabled={item.available_units <= 0}
-                        onClick={() => { setSelectedItem(item); setOpenCheckoutModal(true); }}
-                      >
-                        Check Out / Rent
-                      </Button>
+                      <Box display="flex" gap={1} justifyContent="flex-end" alignItems="center">
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="warning"
+                          disabled={item.available_units <= 0}
+                          onClick={() => { setSelectedItem(item); setOpenCheckoutModal(true); }}
+                        >
+                          Check Out / Rent
+                        </Button>
+                        <IconButton 
+                          color="error" 
+                          size="small" 
+                          onClick={() => handleDeleteStoreItem(item.id)}
+                          title="Delete Equipment"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
