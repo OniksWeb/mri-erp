@@ -44,10 +44,13 @@ function LoginPage() {
         login(data.user, data.token);
         
         // Explicit role-based navigation
-        if (data.user.role === 'inventory_manager') {
-          navigate('/store');
-        } else {
+        // Explicit role-based navigation
+        if (data.user.role === 'inventory_admin' || data.user.role === 'inventory_manager') {
+          navigate('/inventory'); // 👈 Routes both inventory roles straight to the control center
+        } else if (data.user.role === 'admin') {
           navigate('/dashboard');
+        } else {
+          navigate('/dashboard'); // Default fallback
         }
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');
