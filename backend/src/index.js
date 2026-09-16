@@ -55,6 +55,7 @@ const upload = multer({ storage: storage });
 
 // backend/server.js (or app.js)
 import inventoryRoutes from '../routes/inventoryRoutes.js';
+import storeRoutes from '../routes/storeRoutes.js';
 
 // --- Configure CORS properly ---
 const allowedOrigins = [
@@ -108,6 +109,7 @@ app.use(express.json());
 
 // ... your other middleware and routes ...
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/store', storeRoutes);
 
 // At the top of index.js
 const connectedUsers = new Map();

@@ -20,6 +20,8 @@ import ResultManagementPage from './pages/ResultManagementPage';
 import AdminStaffActivityPage from './pages/AdminStaffActivityPage';
 import ResultsDashboardPage from './pages/ResultsDashboardPage';
 import InventoryPage from './pages/InventoryPage';
+import StorePage from './pages/StorePage';
+import InventoryManagerDashboard from './pages/InventoryManagerDashboard';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -116,11 +118,32 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* Inbound Inventory Route (Consumables, Sales, Logistics) */}
         <Route 
           path="/inventory" 
           element={
-            <ProtectedRoute requiredRoles={['admin', 'inventory_manager', 'hq_financial_admin']}>
+            <ProtectedRoute requiredRoles={['admin', 'inventory_manager', 'inventory_admin', 'hq_financial_admin']}>
               <InventoryPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Physical Store & Equipment Custody Page (Strictly Admin & Inventory Manager - NO Inventory Admin) */}
+        <Route 
+          path="/store" 
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'inventory_manager']}>
+              <StorePage />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Inventory Manager Dashboard */}
+        <Route 
+          path="/inventory-manager/dashboard" 
+          element={
+            <ProtectedRoute requiredRoles={['inventory_manager', 'admin']}>
+              <InventoryManagerDashboard />
             </ProtectedRoute>
           } 
         />

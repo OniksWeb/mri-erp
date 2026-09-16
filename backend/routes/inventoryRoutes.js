@@ -1,13 +1,14 @@
 // backend/routes/inventoryRoutes.js
 import express from 'express';
 import { getInventory, createItem, deleteItem, recordTransaction } from '../controllers/inventoryController.js';
-import { auth as protect, authorizeRoles as adminOnly } from '../src/middleware/auth.js';
+import { auth as protect, authorizeRoles } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', protect, getInventory);
-router.post('/', protect, createItem);
-router.delete('/:id', deleteItem);
-router.post('/transaction', protect, recordTransaction);
+// ✅ Allow inventory_admin, inventory_manager, and admin to manage inbound inventory / consumables
+router.get('/', protect, authorizeRoles('admin', 'inventory_manager', 'inventory_admin'), getInventory);
+router.post('/', protect, authorizeRoles('admin', 'inventory_manager', 'inventory_admin'), createItem);
+router.delete('/:id', protect, authorizeRoles('admin', 'inventory_manager', 'inventory_admin'), deleteItem);
+router.post('/transaction', protect, authorizeRoles('admin', 'inventory_manager', 'inventory_admin'), recordTransaction);
 
 export default router;
