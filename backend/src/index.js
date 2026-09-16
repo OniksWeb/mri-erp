@@ -246,6 +246,16 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+// Temporary route to view all admins
+app.get('/api/debug/admins', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT id, username, email, role, created_at FROM users WHERE role = 'admin'");
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+});
+
 // ------------------ AUTHENTICATION & CONFIG ------------------
 
 // --- UPDATED LOGIN ROUTE (Debug Enabled) ---
