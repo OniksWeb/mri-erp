@@ -7,7 +7,7 @@ import {
     returnStoreItem, 
     getStoreLogs 
 } from '../controllers/storeController.js';
-import { auth as protect, authorizeRoles } from '../middleware/auth.js';
+import { auth as protect, authorizeRoles } from '../src/middleware/auth.js';
 
 const router = express.Router();
 
