@@ -1,3 +1,4 @@
+// web-frontend/src/pages/InventoryManagerDashboard.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import CountUp from 'react-countup';
@@ -85,31 +86,24 @@ export default function InventoryManagerDashboard() {
     inventoryItems.reduce((acc, item) => {
       const cat = item.category || 'General';
       if (!acc[cat]) acc[cat] = { name: cat, count: 0 };
-      acc[cat].count += Number(item.in_stock || item.available_units || 1);
+      acc[cat].count += Number(item.quantity_in_stock || item.current_stock || item.available_units || 1);
       return acc;
     }, {})
   );
 
-  const storeCategoryChartData = !isInventoryAdmin ? Object.values(
-    storeItems.reduce((acc, item) => {
-      const cat = item.category || 'General';
-      if (!acc[cat]) acc[cat] = { name: cat, count: 0 };
-      acc[cat].count += Number(item.available_units || 1);
-      return acc;
-    }, {})
-  ) : [];
-
   // --- Filtering Logic ---
   const filteredInventory = inventoryItems.filter(item => {
     const matchesSearch = item.item_name?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-                          item.category?.toLowerCase().includes(inventorySearch.toLowerCase());
+                          item.category?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                          item.sku?.toLowerCase().includes(inventorySearch.toLowerCase());
     const matchesCategory = inventoryCategoryFilter === 'ALL' || item.category === inventoryCategoryFilter;
     return matchesSearch && matchesCategory;
   });
 
   const filteredStore = !isInventoryAdmin ? storeItems.filter(item => {
     const matchesSearch = item.item_name?.toLowerCase().includes(storeSearch.toLowerCase()) ||
-                          item.serial_number?.toLowerCase().includes(storeSearch.toLowerCase());
+                          item.serial_number?.toLowerCase().includes(storeSearch.toLowerCase()) ||
+                          item.category?.toLowerCase().includes(storeSearch.toLowerCase());
     const matchesCategory = storeCategoryFilter === 'ALL' || item.category === storeCategoryFilter;
     return matchesSearch && matchesCategory;
   }) : [];
@@ -117,7 +111,11 @@ export default function InventoryManagerDashboard() {
   const inboundCategories = ['ALL', ...new Set(inventoryItems.map(i => i.category || 'General'))];
   const storeCategories = !isInventoryAdmin ? ['ALL', ...new Set(storeItems.map(i => i.category || 'General'))] : [];
 
-  const lowStockCount = inventoryItems.filter(i => (i.in_stock || i.available_units || 0) <= (i.min_level || 5)).length;
+  const lowStockCount = inventoryItems.filter(i => {
+    const current = Number(i.quantity_in_stock ?? i.current_stock ?? 0);
+    const min = Number(i.reorder_level ?? i.min_level ?? 5);
+    return current <= min;
+  }).length;
 
   // --- Reusable Stat Card Component ---
   const StatCard = ({ title, value, icon, color, subColor }) => (
@@ -279,28 +277,32 @@ export default function InventoryManagerDashboard() {
 
             <Box sx={{ overflowX: 'auto' }}>
               <List sx={{ width: '100%', p: 0 }}>
-                {filteredInventory.length > 0 ? filteredInventory.map((item, i) => (
-                  <React.Fragment key={item.id || i}>
-                    <ListItem sx={{ py: 2 }}>
-                      <ListItemIcon><InventoryIcon color="primary" /></ListItemIcon>
-                      <ListItemText 
-                        primary={<Typography fontWeight="bold" color="text.primary">{item.item_name}</Typography>}
-                        secondary={<Typography variant="caption" color="text.secondary">{`Category: ${item.category || 'General'} • Location: ${item.branch || 'HQ / General'}`}</Typography>}
-                      />
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Box sx={{ textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
-                          <Typography variant="body2" color="text.secondary">Min Level: {item.min_level || 5}</Typography>
-                        </Box>
-                        <Chip 
-                          label={`Stock: ${item.in_stock || 0}`} 
-                          color={(item.in_stock || 0) <= (item.min_level || 5) ? 'warning' : 'success'} 
-                          variant="outlined" 
+                {filteredInventory.length > 0 ? filteredInventory.map((item, i) => {
+                  const stock = Number(item.quantity_in_stock ?? item.current_stock ?? 0);
+                  const min = Number(item.reorder_level ?? item.min_level ?? 5);
+                  return (
+                    <React.Fragment key={item.id || i}>
+                      <ListItem sx={{ py: 2 }}>
+                        <ListItemIcon><InventoryIcon color="primary" /></ListItemIcon>
+                        <ListItemText 
+                          primary={<Typography fontWeight="bold" color="text.primary">{item.item_name}</Typography>}
+                          secondary={<Typography variant="caption" color="text.secondary">{`Category: ${item.category || 'General'} • SKU: ${item.sku || 'N/A'}`}</Typography>}
                         />
-                      </Stack>
-                    </ListItem>
-                    {i < filteredInventory.length - 1 && <Divider component="li" />}
-                  </React.Fragment>
-                )) : (
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <Box sx={{ textAlign: 'right', display: { xs: 'none', sm: 'block' } }}>
+                            <Typography variant="body2" color="text.secondary">Min Level: {min}</Typography>
+                          </Box>
+                          <Chip 
+                            label={`Stock: ${stock} ${item.unit_of_measurement || ''}`} 
+                            color={stock <= min ? 'warning' : 'success'} 
+                            variant="outlined" 
+                          />
+                        </Stack>
+                      </ListItem>
+                      {i < filteredInventory.length - 1 && <Divider component="li" />}
+                    </React.Fragment>
+                  );
+                }) : (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>No inbound inventory records match your search.</Typography>
                 )}
               </List>

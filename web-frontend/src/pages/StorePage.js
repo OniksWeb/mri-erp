@@ -4,10 +4,11 @@ import {
   Box, Container, Typography, Grid, Paper, Button, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select,
-  FormControl, InputLabel, Tabs, Tab, Alert, Card, CardContent, Chip
+  FormControl, InputLabel, Tabs, Tab, Alert, Card, CardContent, Chip, Stack
 } from '@mui/material';
-import { Package as StoreIcon, Clock as ClockIcon, Plus as AddIcon, ArrowUpRight as CheckoutIcon, ArrowDownLeft as ReturnIcon } from 'lucide-react';
-import DeleteIcon from '@mui/icons-material/Delete'; // ✅ Added Delete Icon
+import { Package as StoreIcon, Clock as ClockIcon } from 'lucide-react';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import api from '../services/api';
 
 const StorePage = () => {
@@ -23,15 +24,17 @@ const StorePage = () => {
 
   // Dialog States
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
   const [openCheckoutModal, setOpenCheckoutModal] = useState(false);
   const [openReturnModal, setOpenReturnModal] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
+  const [editItemData, setEditItemData] = useState({ id: '', item_name: '', category: '', serial_number: '', total_units: 1, min_level: 5 });
   const [selectedLogId, setSelectedLogId] = useState(null);
 
   // Form States
-  const [newItem, setNewItem] = useState({ item_name: '', category: '', serial_number: '', total_units: 1 });
-  const [checkoutData, setCheckoutData] = useState({ borrower_name: '', borrower_id_or_staff: '', checkout_condition: '', notes: '' });
+  const [newItem, setNewItem] = useState({ item_name: '', category: '', serial_number: '', total_units: 1, min_level: 5 });
+  const [checkoutData, setCheckoutData] = useState({ borrower_name: '', borrower_id_or_staff: '', customer_or_department: '', checkout_condition: '', notes: '' });
   const [returnData, setReturnData] = useState({ return_condition: '', notes: '' });
 
   useEffect(() => {
@@ -59,20 +62,35 @@ const StorePage = () => {
       await api.post('/api/store/items', newItem);
       setSuccess('Store equipment added successfully.');
       setOpenAddModal(false);
-      setNewItem({ item_name: '', category: '', serial_number: '', total_units: 1 });
+      setNewItem({ item_name: '', category: '', serial_number: '', total_units: 1, min_level: 5 });
       fetchStoreData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add store item.');
     }
   };
 
-  // ✅ Delete Handler for Store Items
+  const handleOpenEdit = (item) => {
+    setEditItemData(item);
+    setOpenEditModal(true);
+  };
+
+  const handleUpdateItem = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/api/store/items/${editItemData.id}`, editItemData);
+      setSuccess('Store equipment updated successfully.');
+      setOpenEditModal(false);
+      fetchStoreData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update store item.');
+    }
+  };
+
   const handleDeleteStoreItem = async (itemId) => {
     if (!window.confirm('Are you sure you want to delete this store equipment?')) return;
     try {
       await api.delete(`/api/store/items/${itemId}`);
       setSuccess('Store equipment deleted successfully.');
-      // Remove item locally from state so the table updates instantly
       setStoreItems(prev => prev.filter(item => item.id !== itemId));
     } catch (err) {
       console.error('Failed to delete store item:', err);
@@ -89,7 +107,7 @@ const StorePage = () => {
       });
       setSuccess('Item checked out / rented successfully.');
       setOpenCheckoutModal(false);
-      setCheckoutData({ borrower_name: '', borrower_id_or_staff: '', checkout_condition: '', notes: '' });
+      setCheckoutData({ borrower_name: '', borrower_id_or_staff: '', customer_or_department: '', checkout_condition: '', notes: '' });
       fetchStoreData();
     } catch (err) {
       setError(err.response?.data?.message || 'Checkout failed.');
@@ -129,11 +147,9 @@ const StorePage = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" fontWeight="bold">🏢 G2G Medical Store & Equipment Custody</Typography>
-        <Box>
-          <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
-            + Add Store Equipment
-          </Button>
-        </Box>
+        <Button variant="contained" color="primary" onClick={() => setOpenAddModal(true)}>
+          + Add Store Equipment
+        </Button>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
@@ -192,11 +208,7 @@ const StorePage = () => {
           />
           <FormControl size="small" sx={{ minWidth: 200, backgroundColor: 'background.paper' }}>
             <InputLabel>Filter Category</InputLabel>
-            <Select
-              value={categoryFilter}
-              label="Filter Category"
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
+            <Select value={categoryFilter} label="Filter Category" onChange={(e) => setCategoryFilter(e.target.value)}>
               {categories.map((cat, idx) => (
                 <MenuItem key={idx} value={cat}>{cat.toUpperCase()}</MenuItem>
               ))}
@@ -240,7 +252,7 @@ const StorePage = () => {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Box display="flex" gap={1} justifyContent="flex-end" alignItems="center">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
                         <Button
                           variant="contained"
                           size="small"
@@ -248,8 +260,16 @@ const StorePage = () => {
                           disabled={item.available_units <= 0}
                           onClick={() => { setSelectedItem(item); setOpenCheckoutModal(true); }}
                         >
-                          Check Out / Rent
+                          Check Out
                         </Button>
+                        <IconButton 
+                          color="primary" 
+                          size="small" 
+                          onClick={() => handleOpenEdit(item)}
+                          title="Edit Equipment Details"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
                         <IconButton 
                           color="error" 
                           size="small" 
@@ -258,7 +278,7 @@ const StorePage = () => {
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
-                      </Box>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))
@@ -274,10 +294,10 @@ const StorePage = () => {
           <Table>
             <TableHead sx={{ backgroundColor: 'action.hover' }}>
               <TableRow>
-                <TableCell><b>Equipment</b></TableCell>
+                <TableCell><b>Equipment & S/N</b></TableCell>
                 <TableCell><b>Borrower / Staff</b></TableCell>
+                <TableCell><b>Customer / Dept</b></TableCell>
                 <TableCell><b>Checkout Condition</b></TableCell>
-                <TableCell><b>Return Condition</b></TableCell>
                 <TableCell><b>Status</b></TableCell>
                 <TableCell align="right"><b>Action</b></TableCell>
               </TableRow>
@@ -293,9 +313,9 @@ const StorePage = () => {
                 storeLogs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>
-                      {log.item_name}
+                      <Typography variant="body2" fontWeight="bold">{log.item_name}</Typography>
                       <Typography variant="caption" display="block" color="textSecondary" sx={{ fontFamily: 'monospace' }}>
-                        {log.serial_number}
+                        {log.serial_number || 'No S/N'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -304,11 +324,9 @@ const StorePage = () => {
                         {log.borrower_id_or_staff}
                       </Typography>
                     </TableCell>
+                    <TableCell>{log.customer_or_department || 'Internal HQ'}</TableCell>
                     <TableCell sx={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {log.checkout_condition || 'No review logged'}
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {log.return_condition || 'Pending return'}
                     </TableCell>
                     <TableCell>
                       <Chip 
@@ -354,13 +372,31 @@ const StorePage = () => {
         </form>
       </Dialog>
 
+      {/* Dialog: Edit Store Equipment */}
+      <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Equipment: {editItemData.item_name}</DialogTitle>
+        <form onSubmit={handleUpdateItem}>
+          <DialogContent>
+            <TextField fullWidth label="Equipment Name" margin="normal" required value={editItemData.item_name} onChange={e => setEditItemData({...editItemData, item_name: e.target.value})} />
+            <TextField fullWidth label="Category" margin="normal" required value={editItemData.category} onChange={e => setEditItemData({...editItemData, category: e.target.value})} />
+            <TextField fullWidth label="Serial Number / Asset Tag" margin="normal" value={editItemData.serial_number || ''} onChange={e => setEditItemData({...editItemData, serial_number: e.target.value})} />
+            <TextField fullWidth label="Total Units" type="number" margin="normal" inputProps={{ min: 1 }} required value={editItemData.total_units} onChange={e => setEditItemData({...editItemData, total_units: parseInt(e.target.value)})} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenEditModal(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" color="primary">Save Changes</Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
       {/* Dialog: Checkout / Rent Equipment */}
       <Dialog open={openCheckoutModal} onClose={() => setOpenCheckoutModal(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Check Out: {selectedItem?.item_name}</DialogTitle>
         <form onSubmit={handleCheckout}>
           <DialogContent>
             <TextField fullWidth label="Borrower / Staff Name" margin="normal" required value={checkoutData.borrower_name} onChange={e => setCheckoutData({...checkoutData, borrower_name: e.target.value})} />
-            <TextField fullWidth label="Staff ID / Department" margin="normal" value={checkoutData.borrower_id_or_staff} onChange={e => setCheckoutData({...checkoutData, borrower_id_or_staff: e.target.value})} />
+            <TextField fullWidth label="Staff ID / Department" margin="normal" required value={checkoutData.borrower_id_or_staff} onChange={e => setCheckoutData({...checkoutData, borrower_id_or_staff: e.target.value})} />
+            <TextField fullWidth label="Customer or Destination Dept" margin="normal" placeholder="e.g., General Hospital Lagos or Radiology Unit" value={checkoutData.customer_or_department} onChange={e => setCheckoutData({...checkoutData, customer_or_department: e.target.value})} />
             <TextField fullWidth label="Initial Condition Review Notes" multiline rows={3} margin="normal" required placeholder="e.g., Pristine condition, includes power cable..." value={checkoutData.checkout_condition} onChange={e => setCheckoutData({...checkoutData, checkout_condition: e.target.value})} />
           </DialogContent>
           <DialogActions>
